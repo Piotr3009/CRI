@@ -1,0 +1,224 @@
+// CRI — Construction Risk Intelligence
+// Prisma schema. See README.md for setup instructions.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ---------------------------------------------------------------------------
+// Enums
+// ---------------------------------------------------------------------------
+
+enum UserRole {
+  CONTRACTOR
+  ADMIN
+}
+
+enum VerifiedStatus {
+  UNVERIFIED
+  PENDING
+  VERIFIED
+  REJECTED
+}
+
+enum EntityType {
+  RESIDENTIAL_CLIENT
+  COMMERCIAL_CLIENT
+  DEVELOPER
+  MAIN_CONTRACTOR
+  PROJECT_MANAGER
+  QUANTITY_SURVEYOR
+  MANAGEMENT_COMPANY
+  HOUSING_ASSOCIATION
+}
+
+enum ProjectType {
+  REFURBISHMENT
+  EXTENSION
+  JOINERY
+  WINDOWS_AND_DOORS
+  ELECTRICAL
+  PLUMBING
+  ROOFING
+  DECORATION
+  NEW_BUILD
+  OTHER
+}
+
+enum ProjectStatus {
+  COMPLETED
+  ONGOING
+  CANCELLED
+  DISPUTED
+}
+
+enum RiskLevel {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum AverageResponseTime {
+  UNDER_24H
+  ONE_TO_THREE_DAYS
+  THREE_TO_SEVEN_DAYS
+  ONE_TO_TWO_WEEKS
+  MORE_THAN_TWO_WEEKS
+}
+
+enum EvidenceStatus {
+  UNVERIFIED
+  BASIC_EVIDENCE
+  VERIFIED_EVIDENCE
+  LEGAL_EVIDENCE
+}
+
+enum ModerationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISPUTED
+}
+
+enum Visibility {
+  PUBLIC
+  VERIFIED_CONTRACTORS_ONLY
+  ADMIN_ONLY
+}
+
+enum EvidenceReviewStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+enum RightToReplyStatus {
+  PENDING
+  PUBLISHED
+  REJECTED
+}
+
+// Tri-state answers used by some report questions. Stored as enums for type
+// safety. (Not in the original enum list but kept minimal and report-scoped.)
+enum YesNoUnsure {
+  YES
+  NO
+  NOT_SURE
+}
+
+enum PaymentLateStatus {
+  YES
+  NO
+  PARTIALLY
+}
+
+// ---------------------------------------------------------------------------
+// Models
+// ---------------------------------------------------------------------------
+
+model User {
+  id             String         @id @default(cuid())
+  email          String         @unique
+  name           String?
+  companyName    String?
+  phone          String?
+  role           UserRole       @default(CONTRACTOR)
+  verifiedStatus VerifiedStatus @default(UNVERIFIED)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+
+  reports RiskReport[]
+}
+
+model RiskReport {
+  id String @id @default(cuid())
+
+  // --- Reporter details (PRIVATE — never exposed on public pages) ---
+  reporter            User?   @relation(fields: [reporterId], references: [id], onDelete: SetNull)
+  reporterId          String?
+  reporterCompanyName String
+  reporterContactName String
+  reporterEmail       String
+  reporterPhone       String?
+  reporterTradeType   String
+
+  // --- Entity being reported ---
+  entityType          EntityType
+  entityName          String? // optional for residential clients
+  clientInitials      String? // residential only, e.g. "C.A."
+  isResidential       Boolean    @default(false)
+  projectAddressLine1 String? // PRIVATE — never exposed publicly
+  projectCity         String?
+  projectPostcode     String? // PRIVATE for residential — only a prefix is public
+  publicArea          String // e.g. "SW19", "NW London", "Manchester"
+
+  // --- Project details ---
+  projectType        ProjectType
+  contractValueRange String? // e.g. "UNDER_5K", "100K_PLUS"
+  startDate          DateTime?
+  projectStatus      ProjectStatus @default(COMPLETED)
+
+  // --- Risk scoring ---
+  paymentScore                       Float // 0–10
+  communicationScore                 Float // 0–10
+  variationRisk                      RiskLevel
+  disputeRisk                        RiskLevel
+  averageResponseTime                AverageResponseTime?
+  extrasRequestedWithoutApprovedCost YesNoUnsure?
+  paymentLate                        PaymentLateStatus?
+  paymentDelayDays                   Int?
+  amountUnpaid                       Int? // whole GBP, optional
+  formalDispute                      YesNoUnsure?
+
+  // --- Narrative ---
+  issueDescription String // PRIVATE detail held for moderation
+  publicSummary    String? // moderated, safe-for-public summary
+
+  // --- Moderation / governance ---
+  evidenceStatus   EvidenceStatus   @default(UNVERIFIED)
+  moderationStatus ModerationStatus @default(PENDING)
+  visibility       Visibility       @default(VERIFIED_CONTRACTORS_ONLY)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  evidence      Evidence[]
+  rightToReplies RightToReply[]
+
+  @@index([moderationStatus])
+  @@index([entityType])
+  @@index([publicArea])
+}
+
+model Evidence {
+  id           String               @id @default(cuid())
+  riskReport   RiskReport           @relation(fields: [riskReportId], references: [id], onDelete: Cascade)
+  riskReportId String
+  type         String // e.g. "DESCRIPTION", "DOCUMENT", "PHOTO", "EMAIL"
+  fileUrl      String?
+  description  String?
+  status       EvidenceReviewStatus @default(PENDING)
+  createdAt    DateTime             @default(now())
+  updatedAt    DateTime             @updatedAt
+
+  @@index([riskReportId])
+}
+
+model RightToReply {
+  id            String             @id @default(cuid())
+  riskReport    RiskReport         @relation(fields: [riskReportId], references: [id], onDelete: Cascade)
+  riskReportId  String
+  responderName String
+  responderEmail String
+  responseText  String
+  status        RightToReplyStatus @default(PENDING)
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+
+  @@index([riskReportId])
+}
