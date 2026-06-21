@@ -1,0 +1,48 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+  }
+
+  body {
+    @apply bg-cri-bg text-cri-charcoal antialiased;
+  }
+
+  /* Smooth in-page anchor jumps (e.g. /#how-it-works). */
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@layer components {
+  .card {
+    @apply rounded-xl border border-cri-border bg-white;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center rounded-lg px-5 py-2.5 text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-cri-green focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-primary {
+    @apply btn bg-cri-green text-white hover:bg-cri-green-dark;
+  }
+
+  .btn-secondary {
+    @apply btn border border-cri-green bg-white text-cri-green hover:bg-cri-green/5;
+  }
+
+  .btn-ghost {
+    @apply btn px-3 text-cri-charcoal hover:bg-black/5;
+  }
+
+  .label {
+    @apply mb-1.5 block text-sm font-medium text-cri-charcoal;
+  }
+
+  .input {
+    @apply w-full rounded-lg border border-cri-border bg-white px-3.5 py-2.5 text-sm text-cri-charcoal shadow-sm transition-colors placeholder:text-cri-steel/60 focus:border-cri-green focus:outline-none focus:ring-1 focus:ring-cri-green;
+  }
+}
