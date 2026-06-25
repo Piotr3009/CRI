@@ -17,8 +17,8 @@ export function HeroSection() {
           </h1>
 
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-cri-steel">
-            CRI helps UK contractors check payment, client, PM, QS and project
-            risk before accepting work.
+            CRI helps UK contractors check payment, client, main contractor,
+            developer, PM, QS and project risk before accepting work.
           </p>
 
           <div className="mt-8 flex flex-col gap-3 sm:flex-row">

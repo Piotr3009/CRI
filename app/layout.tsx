@@ -10,7 +10,7 @@ export const metadata: Metadata = {
     template: "%s — CRI",
   },
   description:
-    "Check client, payment, PM, QS and project risk before accepting construction work. Evidence-backed risk reports for UK contractors.",
+    "Check client, payment, main contractor, developer, PM, QS and project risk before accepting construction work. Evidence-backed risk reports for UK contractors.",
   keywords: [
     "construction risk",
     "contractor risk report",
