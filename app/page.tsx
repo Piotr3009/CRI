@@ -93,6 +93,15 @@ export default function HomePage() {
               ))}
             </ul>
           </div>
+
+          <div className="mx-auto mt-14 max-w-3xl border-t border-cri-border pt-10 text-center">
+            <p className="text-2xl font-semibold leading-snug tracking-tight text-cri-charcoal sm:text-3xl">
+              Every contractor learns the same lesson separately.{" "}
+              <span className="text-cri-green">
+                CRI helps the industry learn together.
+              </span>
+            </p>
+          </div>
         </div>
       </section>
 
