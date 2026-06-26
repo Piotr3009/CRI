@@ -8,7 +8,8 @@
   }
 
   body {
-    @apply bg-cri-canvas text-cri-charcoal antialiased;
+    background-color: #E3E5DC;
+    @apply text-cri-charcoal antialiased;
   }
 
   /* Smooth in-page anchor jumps (e.g. /#how-it-works). */
