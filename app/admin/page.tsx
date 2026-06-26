@@ -6,6 +6,7 @@ import {
   getAdminReports,
   getAdminReportCounts,
 } from "@/lib/reports";
+import { getVisitStats } from "@/lib/visits";
 import { MODERATION_STATUS_LABELS } from "@/lib/constants";
 import { AdminReportTable } from "@/components/AdminReportTable";
 import { ShieldIcon, LockIcon } from "@/components/Icons";
@@ -90,9 +91,10 @@ export default async function AdminPage({
     ? (searchParams.status as ModerationStatus)
     : "PENDING";
 
-  const [reports, counts] = await Promise.all([
+  const [reports, counts, visits] = await Promise.all([
     getAdminReports(activeStatus),
     getAdminReportCounts(),
+    getVisitStats(),
   ]);
 
   return (
@@ -111,6 +113,38 @@ export default async function AdminPage({
             Sign out
           </button>
         </form>
+      </div>
+
+      {/* Visit stats */}
+      <div className="mt-6 rounded-xl border border-cri-border bg-white p-5 shadow-card">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="flex gap-8">
+            <div>
+              <p className="text-xs text-cri-steel">Total visits</p>
+              <p className="text-2xl font-bold text-cri-charcoal">
+                {visits.total.toLocaleString("en-GB")}
+              </p>
+            </div>
+            <div>
+              <p className="text-xs text-cri-steel">Today</p>
+              <p className="text-2xl font-bold text-cri-charcoal">
+                {visits.today.toLocaleString("en-GB")}
+              </p>
+            </div>
+          </div>
+          {visits.recent.length > 0 ? (
+            <div className="flex flex-wrap gap-3">
+              {visits.recent.map((r) => (
+                <div key={r.day} className="text-right">
+                  <p className="text-[11px] text-cri-steel">{r.day.slice(5)}</p>
+                  <p className="text-sm font-semibold text-cri-charcoal">{r.count}</p>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-sm text-cri-steel">No visits recorded yet.</p>
+          )}
+        </div>
       </div>
 
       {/* Status tabs */}
