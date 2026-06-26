@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { RiskBadge } from "./RiskBadge";
 import { EvidenceBadge } from "./EvidenceBadge";
 import { VisibilityBadge } from "./VisibilityBadge";
@@ -9,7 +10,6 @@ import {
   ShieldCheckIcon,
   PoundIcon,
   ChatIcon,
-  LockIcon,
   ArrowRightIcon,
   BuildingIcon,
   ClipboardIcon,
@@ -68,11 +68,20 @@ function GaugeTile({
   );
 }
 
-/** Locked "atom" preview: director at the nucleus, linked companies orbiting. */
-function ConnectionsAtomLocked() {
+const LINKED_COMPANIES = [
+  { name: "Northline Build", status: "Active", color: "#4A6B58" },
+  { name: "Meridian QS Ltd", status: "Active", color: "#4A6B58" },
+  { name: "Crownstone Ltd", status: "Administration", color: "#D99A21" },
+  { name: "Apex Contractors", status: "Dissolved", color: "#6B7280" },
+  { name: "Vertex Build", status: "Dissolved", color: "#6B7280" },
+  { name: "Summit Projects", status: "In liquidation", color: "#C0392B" },
+];
+
+/** Revealed "atom": director at the nucleus, linked companies orbiting + named list. */
+function ConnectionsAtom() {
   return (
-    <div className="relative rounded-lg bg-cri-bg p-2.5">
-      <svg viewBox="0 0 320 150" className="block w-full" role="img" aria-label="Locked connections map">
+    <div className="rounded-lg bg-cri-bg p-3">
+      <svg viewBox="0 0 320 150" className="mx-auto block w-full max-w-[280px]" role="img" aria-label="Connections map: director linked to six companies">
         <ellipse cx={160} cy={80} rx={120} ry={52} fill="none" stroke="#6B7280" strokeWidth={1} opacity={0.3} />
         <ellipse cx={160} cy={80} rx={120} ry={52} fill="none" stroke="#6B7280" strokeWidth={1} opacity={0.2} transform="rotate(35 160 80)" />
         <circle cx={280} cy={80} r={8} fill="#4A6B58" />
@@ -84,11 +93,15 @@ function ConnectionsAtomLocked() {
         <circle cx={160} cy={80} r={22} fill="#344E41" />
         <text x={160} y={84} textAnchor="middle" fontSize={10} fill="#FFFFFF">Director</text>
       </svg>
-      <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 rounded-lg bg-cri-bg/80">
-        <LockIcon className="h-5 w-5 text-cri-green" />
-        <p className="text-sm font-medium text-cri-charcoal">6 companies linked · 3 dissolved</p>
-        <p className="text-xs text-cri-steel">Unlock to reveal the names</p>
-      </div>
+      <ul className="mt-2 grid grid-cols-1 gap-1 sm:grid-cols-2">
+        {LINKED_COMPANIES.map((c) => (
+          <li key={c.name} className="flex items-center gap-2 text-xs">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: c.color }} aria-hidden="true" />
+            <span className="font-medium text-cri-charcoal">{c.name}</span>
+            <span className="text-cri-steel">· {c.status}</span>
+          </li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -102,6 +115,7 @@ function SectionHead({ icon, children }: { icon: React.ReactNode; children: Reac
   );
 }
 
+/** Full sample report — the post-purchase view a buyer gets after unlocking. */
 function SampleReportModal({ onClose }: { onClose: () => void }) {
   return (
     <div
@@ -173,10 +187,10 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
             </p>
           </div>
 
-          {/* B — Connections */}
+          {/* B — Connections (revealed) */}
           <div>
             <SectionHead icon={<UsersIcon className="h-4 w-4" />}>Connections</SectionHead>
-            <ConnectionsAtomLocked />
+            <ConnectionsAtom />
           </div>
 
           {/* A — Company details */}
@@ -222,20 +236,19 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
-        {/* Paywall footer */}
+        {/* Marketing footer (post-purchase view — no paywall) */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-cri-border bg-cri-bg p-5">
           <div>
-            <p className="flex items-center gap-1.5 text-sm font-medium text-cri-charcoal">
-              <LockIcon className="h-4 w-4" /> Full report locked
-            </p>
-            <p className="mt-0.5 text-[11px] text-cri-steel">or 5 for £3.99 · 10 for £4.99</p>
+            <p className="text-sm font-medium text-cri-charcoal">This is a full sample report</p>
+            <p className="mt-0.5 text-[11px] text-cri-steel">Real company reports from £2.99</p>
           </div>
-          <button
-            type="button"
+          <Link
+            href="/search"
+            onClick={onClose}
             className="rounded-lg bg-cri-green px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cri-green-dark"
           >
-            Unlock — £1.99
-          </button>
+            Search the database
+          </Link>
         </div>
       </div>
     </div>
@@ -305,9 +318,7 @@ export function DashboardPreview() {
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-cri-steel">Connections</dt>
-          <dd className="flex items-center gap-1.5 text-xs text-cri-steel">
-            <LockIcon className="h-3.5 w-3.5" /> 6 linked · locked
-          </dd>
+          <dd className="text-xs text-cri-steel">6 linked · 3 dissolved</dd>
         </div>
         <div className="flex items-center justify-between">
           <dt className="text-cri-steel">Visibility</dt>
