@@ -56,6 +56,10 @@ export function ReportCard({
         </div>
       </div>
 
+      <p className="mt-2 text-[11px] text-cri-steel">
+        Contractor-submitted, not CRI&rsquo;s opinion.
+      </p>
+
       <div className="mt-3 flex flex-wrap gap-2">
         <RiskBadge level={report.variationRisk} label="Variation" />
         <RiskBadge level={report.disputeRisk} label="Dispute" />
