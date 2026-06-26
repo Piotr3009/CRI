@@ -110,6 +110,12 @@ export default async function ReportPage({
           />
         </div>
 
+        <p className="mt-2 text-xs text-cri-steel">
+          Based on {reportCount} contractor{" "}
+          {reportCount === 1 ? "report" : "reports"}. Scores are
+          contractor-submitted, not CRI&rsquo;s opinion.
+        </p>
+
         <div className="mt-4 flex flex-wrap gap-2">
           <RiskBadge level={report.variationRisk} label="Variation Risk" />
           <RiskBadge level={report.disputeRisk} label="Dispute Risk" />
