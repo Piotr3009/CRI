@@ -226,6 +226,25 @@ model RiskReport {
   pmRealisticScore     Int? // realistyczne oczekiwania/instrukcje
   pmDtmFairnessScore   Int? // sprawiedliwy podział odpowiedzialności na DTM
 
+  // Quantity surveyor — wszystkie 1-10
+  qsFairTenderScore          Int? // wszyscy ten sam spec (like-for-like)
+  qsTenderDocsScore          Int? // dokumentacja przetargowa kompletna/jasna
+  qsPriceChallengeScore      Int? // kwestionowanie ceny na podstawie sprawdzenia
+  qsOpenToExplanationScore   Int? // otwarty na wyjaśnienia skąd cena
+  qsMeasurementScore         Int? // obmiary dokładne
+  qsVariationPricingScore    Int? // variations wyceniane sprawiedliwie
+  qsClaimsScore              Int? // uznawał uzasadnione roszczenia
+  qsVariationAcceptanceScore Int? // sprawiedliwa akceptacja uzasadnionej variation
+  qsCertTimingScore          Int? // certyfikaty płatności na czas
+  qsUnfairDeductionsScore    Int? // brak niesprawiedliwych potrąceń w certyfikatach
+  qsFinalAccountScore        Int? // rozliczenie końcowe uczciwe/terminowe
+  qsImpartialScore           Int? // bezstronny, nie zawsze po stronie klienta
+  qsCommunicationScore       Int? // komunikacja jasna/konkretna/terminowa
+  qsWouldRecommendScore      Int? // poleciłbyś ponownie
+
+  // Łączone role — PM/architekt mógł być też QS (blok QS wypełniony)
+  alsoActedAsQs Boolean?
+
   // Evidence types the reporter claims to hold (checkboxes), e.g.
   // "INVOICES,SMS_EMAIL,PHOTOS,BANK_STATEMENT,OTHER". Files come later.
   evidenceTypes String?

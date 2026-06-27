@@ -6,6 +6,7 @@ import {
   submitCommercialClientReport,
   submitMainContractorReport,
   submitProjectManagerReport,
+  submitQuantitySurveyorReport,
 } from "@/app/submit-report/actions";
 import {
   PROJECT_TYPE_LABELS,
@@ -30,7 +31,7 @@ const TYPE_TILES: TypeTile[] = [
   { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: true },
   { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: false },
   { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: true },
-  { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: false },
+  { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: true },
 ];
 
 const BEHAVIOUR_QUESTIONS: { key: BehaviourKey; label: string }[] = [
@@ -92,6 +93,23 @@ const PM_QUESTIONS: { key: PmKey; label: string }[] = [
   { key: "pmDtmFairnessScore", label: "On DTMs, did the PM fairly assign responsibility and hold everyone (not just the contractor) accountable?" },
 ];
 
+const QS_QUESTIONS: { key: QsKey; label: string }[] = [
+  { key: "qsFairTenderScore", label: "Were all bidders given the exact same spec and scope to price (a fair like-for-like tender)?" },
+  { key: "qsTenderDocsScore", label: "Were the tender documents complete and clear enough to price properly?" },
+  { key: "qsPriceChallengeScore", label: "When they challenged your price as too high, was it backed by a proper like-for-like check, not guesswork?" },
+  { key: "qsOpenToExplanationScore", label: "Were they open to your explanation of where the price came from, rather than assuming you'd inflated it?" },
+  { key: "qsMeasurementScore", label: "Were their measurements accurate (not under-measured to cut your figure)?" },
+  { key: "qsVariationPricingScore", label: "Did they price variations fairly (reasonable rates, not deflated)?" },
+  { key: "qsClaimsScore", label: "Did they acknowledge legitimate claims, rather than rejecting everything by default?" },
+  { key: "qsVariationAcceptanceScore", label: "How fair and realistic was it to get a legitimate variation accepted?" },
+  { key: "qsCertTimingScore", label: "Were payment certificates / valuations issued on time?" },
+  { key: "qsUnfairDeductionsScore", label: "Were the certificates free of unfair deductions?" },
+  { key: "qsFinalAccountScore", label: "Was the final account fair and settled in good time?" },
+  { key: "qsImpartialScore", label: "Were they impartial, rather than always acting in the client's favour against you?" },
+  { key: "qsCommunicationScore", label: "Was communication clear, specific and timely?" },
+  { key: "qsWouldRecommendScore", label: "Would you work with this QS again?" },
+];
+
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // ---------------------------------------------------------------------------
@@ -130,6 +148,22 @@ type PmKey =
   | "pmCommunicationScore"
   | "pmRealisticScore"
   | "pmDtmFairnessScore";
+
+type QsKey =
+  | "qsFairTenderScore"
+  | "qsTenderDocsScore"
+  | "qsPriceChallengeScore"
+  | "qsOpenToExplanationScore"
+  | "qsMeasurementScore"
+  | "qsVariationPricingScore"
+  | "qsClaimsScore"
+  | "qsVariationAcceptanceScore"
+  | "qsCertTimingScore"
+  | "qsUnfairDeductionsScore"
+  | "qsFinalAccountScore"
+  | "qsImpartialScore"
+  | "qsCommunicationScore"
+  | "qsWouldRecommendScore";
 
 type PayRow = { daysLate: string; amountGbp: string };
 
@@ -300,6 +334,38 @@ function Scale1to10({
 // Main component
 // ---------------------------------------------------------------------------
 
+function ScoreList({
+  questions,
+  get,
+  set,
+  errors,
+}: {
+  questions: { key: string; label: string }[];
+  get: (key: string) => string;
+  set: (key: string, v: string) => void;
+  errors: Errors;
+}) {
+  return (
+    <div className="space-y-4">
+      {questions.map((q) => (
+        <div
+          id={q.key}
+          key={q.key}
+          className="border-t border-gray-100 pt-4 first:border-0 first:pt-0"
+        >
+          <span className="block text-sm text-cri-charcoal sm:max-w-xl">
+            {q.label}
+          </span>
+          <div className="mt-2">
+            <Scale1to10 value={get(q.key)} onChange={(v) => set(q.key, v)} />
+            <Err msg={errors[q.key]} />
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function SubmitReportFlow() {
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
@@ -348,6 +414,25 @@ export function SubmitReportFlow() {
     pmDtmFairnessScore: "",
   });
 
+  // QS scores (used by the QS tile, and by PM when "also acted as QS")
+  const [alsoActedAsQs, setAlsoActedAsQs] = useState(false);
+  const [qsScores, setQsScores] = useState<Record<QsKey, string>>({
+    qsFairTenderScore: "",
+    qsTenderDocsScore: "",
+    qsPriceChallengeScore: "",
+    qsOpenToExplanationScore: "",
+    qsMeasurementScore: "",
+    qsVariationPricingScore: "",
+    qsClaimsScore: "",
+    qsVariationAcceptanceScore: "",
+    qsCertTimingScore: "",
+    qsUnfairDeductionsScore: "",
+    qsFinalAccountScore: "",
+    qsImpartialScore: "",
+    qsCommunicationScore: "",
+    qsWouldRecommendScore: "",
+  });
+
   // Payments
   const [payRows, setPayRows] = useState<PayRow[]>([{ daysLate: "", amountGbp: "" }]);
 
@@ -390,6 +475,8 @@ export function SubmitReportFlow() {
   const isCompany = isCommercial || isMainContractor;
   const isPaying = isPrivate || isCommercial || isMainContractor;
   const isPM = selectedType === "PROJECT_MANAGER";
+  const isQS = selectedType === "QUANTITY_SURVEYOR";
+  const isServiceProvider = isPM || isQS;
 
   // --- Payment count control -------------------------------------------------
   function setPaymentCount(nRaw: number) {
@@ -489,16 +576,28 @@ export function SubmitReportFlow() {
       });
     }
 
-    if (isPM) {
+    if (isServiceProvider) {
       if (!entityName.trim()) e.entityName = "Required";
       if (!spReporterRole.trim()) e.spReporterRole = "Required";
 
-      PM_QUESTIONS.forEach((q) => {
-        const v = Number(pmScores[q.key]);
-        if (!pmScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
-          e[q.key] = "Pick 1–10";
-        }
-      });
+      if (isPM) {
+        PM_QUESTIONS.forEach((q) => {
+          const v = Number(pmScores[q.key]);
+          if (!pmScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
+            e[q.key] = "Pick 1–10";
+          }
+        });
+      }
+
+      // QS questions: on the QS tile, or when a PM also acted as the QS.
+      if (isQS || (isPM && alsoActedAsQs)) {
+        QS_QUESTIONS.forEach((q) => {
+          const v = Number(qsScores[q.key]);
+          if (!qsScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
+            e[q.key] = "Pick 1–10";
+          }
+        });
+      }
 
       SP_CONSENT_ITEMS.forEach((c) => {
         if (!consents[c.key]) e[`con_${c.key}`] = "Required";
@@ -546,6 +645,7 @@ export function SubmitReportFlow() {
     "retentionStatus",
     "projectReadiness",
     ...PM_QUESTIONS.map((q) => q.key),
+    ...QS_QUESTIONS.map((q) => q.key),
     ...payRows.map((_, i) => `pay_${i}`),
     "abandonedCount",
     ...BEHAVIOUR_QUESTIONS.map((q) => `beh_${q.key}`),
@@ -614,19 +714,48 @@ export function SubmitReportFlow() {
 
     try {
       let res;
+      const qsNums = {
+        qsFairTenderScore: Number(qsScores.qsFairTenderScore),
+        qsTenderDocsScore: Number(qsScores.qsTenderDocsScore),
+        qsPriceChallengeScore: Number(qsScores.qsPriceChallengeScore),
+        qsOpenToExplanationScore: Number(qsScores.qsOpenToExplanationScore),
+        qsMeasurementScore: Number(qsScores.qsMeasurementScore),
+        qsVariationPricingScore: Number(qsScores.qsVariationPricingScore),
+        qsClaimsScore: Number(qsScores.qsClaimsScore),
+        qsVariationAcceptanceScore: Number(qsScores.qsVariationAcceptanceScore),
+        qsCertTimingScore: Number(qsScores.qsCertTimingScore),
+        qsUnfairDeductionsScore: Number(qsScores.qsUnfairDeductionsScore),
+        qsFinalAccountScore: Number(qsScores.qsFinalAccountScore),
+        qsImpartialScore: Number(qsScores.qsImpartialScore),
+        qsCommunicationScore: Number(qsScores.qsCommunicationScore),
+        qsWouldRecommendScore: Number(qsScores.qsWouldRecommendScore),
+      };
+      const spReporter = {
+        reporterCompanyName: reporterCompanyName.trim(),
+        reporterContactName: reporterContactName.trim(),
+        reporterEmail: reporterEmail.trim(),
+        reporterPhone: reporterPhone.trim(),
+        reporterTradeType: reporterTradeType.trim(),
+        entityName: entityName.trim(),
+        spReporterRole: spReporterRole.trim(),
+        projectAddressLine1: projectAddressLine1.trim(),
+        projectCity: projectCity.trim(),
+        projectPostcode: projectPostcode.trim(),
+        projectType,
+        issueDescription: issueDescription.trim(),
+        evidenceTypes: evidence,
+        consents: {
+          realExperience: consents.realExperience,
+          canProvide: consents.canProvide,
+          allowModeration: consents.allowModeration,
+          notAutoPublished: consents.notAutoPublished,
+          notRevenge: consents.notRevenge,
+        },
+      };
+
       if (isPM) {
         res = await submitProjectManagerReport({
-          reporterCompanyName: reporterCompanyName.trim(),
-          reporterContactName: reporterContactName.trim(),
-          reporterEmail: reporterEmail.trim(),
-          reporterPhone: reporterPhone.trim(),
-          reporterTradeType: reporterTradeType.trim(),
-          entityName: entityName.trim(),
-          spReporterRole: spReporterRole.trim(),
-          projectAddressLine1: projectAddressLine1.trim(),
-          projectCity: projectCity.trim(),
-          projectPostcode: projectPostcode.trim(),
-          projectType,
+          ...spReporter,
           pmScheduleScore: Number(pmScores.pmScheduleScore),
           pmTenderDistribScore: Number(pmScores.pmTenderDistribScore),
           pmDtmProfessionalScore: Number(pmScores.pmDtmProfessionalScore),
@@ -637,15 +766,13 @@ export function SubmitReportFlow() {
           pmCommunicationScore: Number(pmScores.pmCommunicationScore),
           pmRealisticScore: Number(pmScores.pmRealisticScore),
           pmDtmFairnessScore: Number(pmScores.pmDtmFairnessScore),
-          issueDescription: issueDescription.trim(),
-          evidenceTypes: evidence,
-          consents: {
-            realExperience: consents.realExperience,
-            canProvide: consents.canProvide,
-            allowModeration: consents.allowModeration,
-            notAutoPublished: consents.notAutoPublished,
-            notRevenge: consents.notRevenge,
-          },
+          alsoActedAsQs,
+          ...(alsoActedAsQs ? qsNums : {}),
+        });
+      } else if (isQS) {
+        res = await submitQuantitySurveyorReport({
+          ...spReporter,
+          ...qsNums,
         });
       } else if (isMainContractor) {
         res = await submitMainContractorReport({
@@ -785,7 +912,7 @@ export function SubmitReportFlow() {
       </Section>
 
       {/* Coming soon notice for non-active types */}
-      {selectedType && !isPaying && !isPM && (
+      {selectedType && !isPaying && !isServiceProvider && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-cri-steel">
           This survey type is coming soon. Right now you can submit a{" "}
           <strong className="text-cri-charcoal">Private client</strong>,{" "}
@@ -1292,7 +1419,7 @@ export function SubmitReportFlow() {
         </>
       )}
 
-      {isPM && (
+      {isServiceProvider && (
         <>
           <Section
             title="Who you are reporting"
@@ -1307,7 +1434,11 @@ export function SubmitReportFlow() {
                 <input
                   id="entityName"
                   className={inp(errors.entityName)}
-                  placeholder="e.g. ABC Project Management Ltd"
+                  placeholder={
+                    isQS
+                      ? "e.g. ABC Cost Consultants Ltd"
+                      : "e.g. ABC Project Management Ltd"
+                  }
                   value={entityName}
                   onChange={(e) => setEntityName(e.target.value)}
                 />
@@ -1316,12 +1447,16 @@ export function SubmitReportFlow() {
                 label="Their role"
                 required
                 error={errors.spReporterRole}
-                hint="Function, not a person's name — e.g. Project Manager, Senior PM."
+                hint={
+                  isQS
+                    ? "Function, not a person's name — e.g. Senior QS, Cost Consultant."
+                    : "Function, not a person's name — e.g. Project Manager, Senior PM."
+                }
               >
                 <input
                   id="spReporterRole"
                   className={inp(errors.spReporterRole)}
-                  placeholder="e.g. Project Manager"
+                  placeholder={isQS ? "e.g. Senior QS" : "e.g. Project Manager"}
                   value={spReporterRole}
                   onChange={(e) => setSpReporterRole(e.target.value)}
                 />
@@ -1370,33 +1505,65 @@ export function SubmitReportFlow() {
             </div>
           </Section>
 
-          <Section
-            title="Project manager — performance"
-            description="Rate each from 1 (poor) to 10 (excellent). Averages and gauges are built later from many reports."
-          >
-            <div className="space-y-4">
-              {PM_QUESTIONS.map((q) => (
-                <div
-                  id={q.key}
-                  key={q.key}
-                  className="border-t border-gray-100 pt-4 first:border-0 first:pt-0"
-                >
-                  <span className="block text-sm text-cri-charcoal sm:max-w-xl">
-                    {q.label}
-                  </span>
-                  <div className="mt-2">
-                    <Scale1to10
-                      value={pmScores[q.key]}
-                      onChange={(v) =>
-                        setPmScores((prev) => ({ ...prev, [q.key]: v }))
-                      }
-                    />
-                    <Err msg={errors[q.key]} />
-                  </div>
-                </div>
-              ))}
-            </div>
-          </Section>
+          {isPM && (
+            <Section
+              title="Project manager — performance"
+              description="Rate each from 1 (poor) to 10 (excellent). Averages and gauges are built later from many reports."
+            >
+              <ScoreList
+                questions={PM_QUESTIONS}
+                get={(k) => pmScores[k as PmKey] ?? ""}
+                set={(k, v) =>
+                  setPmScores((prev) => ({ ...prev, [k as PmKey]: v }))
+                }
+                errors={errors}
+              />
+            </Section>
+          )}
+
+          {isPM && (
+            <Section
+              title="Was this PM also the QS?"
+              description="On smaller projects the same person often runs both. Tick yes to also rate their QS / cost work."
+            >
+              <div className="inline-flex rounded-lg border border-gray-300 p-0.5">
+                {[
+                  { v: false, label: "No" },
+                  { v: true, label: "Yes — also the QS" },
+                ].map((o) => (
+                  <button
+                    key={String(o.v)}
+                    type="button"
+                    onClick={() => setAlsoActedAsQs(o.v)}
+                    className={
+                      "rounded-md px-3 py-1.5 text-sm transition " +
+                      (alsoActedAsQs === o.v
+                        ? "bg-cri-green text-white"
+                        : "text-cri-steel hover:bg-gray-100")
+                    }
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {(isQS || (isPM && alsoActedAsQs)) && (
+            <Section
+              title="Quantity surveyor — assessment"
+              description="Rate each from 1 (poor) to 10 (excellent). Facts first — averages come later."
+            >
+              <ScoreList
+                questions={QS_QUESTIONS}
+                get={(k) => qsScores[k as QsKey] ?? ""}
+                set={(k, v) =>
+                  setQsScores((prev) => ({ ...prev, [k as QsKey]: v }))
+                }
+                errors={errors}
+              />
+            </Section>
+          )}
 
           <Section
             title="Description & evidence"

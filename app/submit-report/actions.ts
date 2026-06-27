@@ -388,28 +388,82 @@ const serviceProviderConsents = z.object({
   notRevenge: z.literal(true),
 });
 
-const projectManagerSchema = z.object({
-  ...reporterShape,
-  entityName: z.string().trim().min(1).max(200),
-  spReporterRole: z.string().trim().min(1).max(120),
-  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
-  projectCity: z.string().trim().min(1).max(120),
-  projectPostcode: z.string().trim().min(2).max(12),
-  projectType: projectTypeEnum,
-  pmScheduleScore: score1to10,
-  pmTenderDistribScore: score1to10,
-  pmDtmProfessionalScore: score1to10,
-  pmImpartialScore: score1to10,
-  pmCoordinationScore: score1to10,
-  pmDecisionsScore: score1to10,
-  pmFragmentationScore: score1to10,
-  pmCommunicationScore: score1to10,
-  pmRealisticScore: score1to10,
-  pmDtmFairnessScore: score1to10,
-  issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
-  evidenceTypes: z.array(z.string().trim().max(40)).max(10),
-  consents: serviceProviderConsents,
-});
+const qsScoresRequired = {
+  qsFairTenderScore: score1to10,
+  qsTenderDocsScore: score1to10,
+  qsPriceChallengeScore: score1to10,
+  qsOpenToExplanationScore: score1to10,
+  qsMeasurementScore: score1to10,
+  qsVariationPricingScore: score1to10,
+  qsClaimsScore: score1to10,
+  qsVariationAcceptanceScore: score1to10,
+  qsCertTimingScore: score1to10,
+  qsUnfairDeductionsScore: score1to10,
+  qsFinalAccountScore: score1to10,
+  qsImpartialScore: score1to10,
+  qsCommunicationScore: score1to10,
+  qsWouldRecommendScore: score1to10,
+};
+
+const qsScoreKeys = Object.keys(qsScoresRequired) as (keyof typeof qsScoresRequired)[];
+
+const qsScoresOptional = {
+  qsFairTenderScore: score1to10.nullable().optional(),
+  qsTenderDocsScore: score1to10.nullable().optional(),
+  qsPriceChallengeScore: score1to10.nullable().optional(),
+  qsOpenToExplanationScore: score1to10.nullable().optional(),
+  qsMeasurementScore: score1to10.nullable().optional(),
+  qsVariationPricingScore: score1to10.nullable().optional(),
+  qsClaimsScore: score1to10.nullable().optional(),
+  qsVariationAcceptanceScore: score1to10.nullable().optional(),
+  qsCertTimingScore: score1to10.nullable().optional(),
+  qsUnfairDeductionsScore: score1to10.nullable().optional(),
+  qsFinalAccountScore: score1to10.nullable().optional(),
+  qsImpartialScore: score1to10.nullable().optional(),
+  qsCommunicationScore: score1to10.nullable().optional(),
+  qsWouldRecommendScore: score1to10.nullable().optional(),
+};
+
+const projectManagerSchema = z
+  .object({
+    ...reporterShape,
+    entityName: z.string().trim().min(1).max(200),
+    spReporterRole: z.string().trim().min(1).max(120),
+    projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+    projectCity: z.string().trim().min(1).max(120),
+    projectPostcode: z.string().trim().min(2).max(12),
+    projectType: projectTypeEnum,
+    pmScheduleScore: score1to10,
+    pmTenderDistribScore: score1to10,
+    pmDtmProfessionalScore: score1to10,
+    pmImpartialScore: score1to10,
+    pmCoordinationScore: score1to10,
+    pmDecisionsScore: score1to10,
+    pmFragmentationScore: score1to10,
+    pmCommunicationScore: score1to10,
+    pmRealisticScore: score1to10,
+    pmDtmFairnessScore: score1to10,
+    // Optional QS block — required only if this PM also acted as the QS.
+    alsoActedAsQs: z.boolean(),
+    ...qsScoresOptional,
+    issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
+    evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+    consents: serviceProviderConsents,
+  })
+  .superRefine((d, ctx) => {
+    if (d.alsoActedAsQs) {
+      for (const k of qsScoreKeys) {
+        const v = (d as Record<string, unknown>)[k];
+        if (typeof v !== "number") {
+          ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: "Pick 1–10",
+            path: [k],
+          });
+        }
+      }
+    }
+  });
 
 export async function submitProjectManagerReport(
   input: unknown,
@@ -479,10 +533,103 @@ export async function submitProjectManagerReport(
       pmRealisticScore: d.pmRealisticScore,
       pmDtmFairnessScore: d.pmDtmFairnessScore,
 
+      // QS block — only when this PM also acted as the QS.
+      alsoActedAsQs: d.alsoActedAsQs,
+      ...(d.alsoActedAsQs ? qsColumns(d as Record<string, unknown>) : {}),
+
       visibility: "PUBLIC",
     });
   } catch (error) {
     console.error("Failed to create project manager report", error);
+    return {
+      ok: false,
+      formError: "Something went wrong saving your report. Please try again.",
+    };
+  }
+
+  redirect("/submit-report/success");
+}
+
+// ---------------------------------------------------------------------------
+// Quantity surveyor
+// ---------------------------------------------------------------------------
+
+/** Pull the 14 QS score columns from a parsed object (null when absent). */
+function qsColumns(d: Record<string, unknown>): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  for (const k of qsScoreKeys) {
+    const v = d[k];
+    out[k] = typeof v === "number" ? v : null;
+  }
+  return out;
+}
+
+const quantitySurveyorSchema = z.object({
+  ...reporterShape,
+  entityName: z.string().trim().min(1).max(200),
+  spReporterRole: z.string().trim().min(1).max(120),
+  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+  projectCity: z.string().trim().min(1).max(120),
+  projectPostcode: z.string().trim().min(2).max(12),
+  projectType: projectTypeEnum,
+  ...qsScoresRequired,
+  issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
+  evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+  consents: serviceProviderConsents,
+});
+
+export async function submitQuantitySurveyorReport(
+  input: unknown,
+): Promise<SubmitState> {
+  const parsed = quantitySurveyorSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      formError: "Please complete all required fields correctly.",
+    };
+  }
+  const d = parsed.data;
+
+  const cols = qsColumns(d as Record<string, unknown>);
+  const scores = qsScoreKeys.map((k) => cols[k] ?? 0);
+  const overall = Math.round(scores.reduce((s, n) => s + n, 0) / scores.length);
+
+  try {
+    await createRiskReport({
+      reporterCompanyName: d.reporterCompanyName,
+      reporterContactName: d.reporterContactName,
+      reporterEmail: d.reporterEmail,
+      reporterPhone: d.reporterPhone || null,
+      reporterTradeType: d.reporterTradeType,
+
+      entityType: "QUANTITY_SURVEYOR",
+      entityName: d.entityName,
+      clientInitials: null,
+      isResidential: false,
+
+      projectAddressLine1: d.projectAddressLine1 || null,
+      projectCity: d.projectCity,
+      projectPostcode: d.projectPostcode,
+      publicArea: outwardCode(d.projectPostcode),
+      projectType: d.projectType,
+
+      // Legacy payment-centric fields — neutral placeholders.
+      paymentScore: overall,
+      communicationScore: d.qsCommunicationScore,
+      variationRisk: "LOW",
+      disputeRisk: "LOW",
+
+      issueDescription: (d.issueDescription || "").trim(),
+      evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
+      consentsAcceptedAt: new Date(),
+
+      spReporterRole: d.spReporterRole,
+      ...cols,
+
+      visibility: "PUBLIC",
+    });
+  } catch (error) {
+    console.error("Failed to create quantity surveyor report", error);
     return {
       ok: false,
       formError: "Something went wrong saving your report. Please try again.",
