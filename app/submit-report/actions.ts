@@ -380,6 +380,46 @@ export async function submitMainContractorReport(
 
 const score1to10 = z.number().int().min(1).max(10);
 
+const pmScoresRequired = {
+  pmScheduleScore: score1to10,
+  pmTenderDistribScore: score1to10,
+  pmDtmProfessionalScore: score1to10,
+  pmImpartialScore: score1to10,
+  pmCoordinationScore: score1to10,
+  pmDecisionsScore: score1to10,
+  pmFragmentationScore: score1to10,
+  pmCommunicationScore: score1to10,
+  pmRealisticScore: score1to10,
+  pmDtmFairnessScore: score1to10,
+};
+
+const pmScoreKeys = Object.keys(pmScoresRequired) as (keyof typeof pmScoresRequired)[];
+
+const pmScoresOptional = {
+  pmScheduleScore: score1to10.nullable().optional(),
+  pmTenderDistribScore: score1to10.nullable().optional(),
+  pmDtmProfessionalScore: score1to10.nullable().optional(),
+  pmImpartialScore: score1to10.nullable().optional(),
+  pmCoordinationScore: score1to10.nullable().optional(),
+  pmDecisionsScore: score1to10.nullable().optional(),
+  pmFragmentationScore: score1to10.nullable().optional(),
+  pmCommunicationScore: score1to10.nullable().optional(),
+  pmRealisticScore: score1to10.nullable().optional(),
+  pmDtmFairnessScore: score1to10.nullable().optional(),
+};
+
+const arScoresRequired = {
+  arDrawingsAccurateScore: score1to10,
+  arCompletenessScore: score1to10,
+  arCoordinationScore: score1to10,
+  arErrorFreeScore: score1to10,
+  arTimelinessScore: score1to10,
+  arFewChangesScore: score1to10,
+  arBuildabilityScore: score1to10,
+  arImpartialScore: score1to10,
+  arWouldRecommendScore: score1to10,
+};
+
 const serviceProviderConsents = z.object({
   realExperience: z.literal(true),
   canProvide: z.literal(true),
@@ -433,16 +473,7 @@ const projectManagerSchema = z
     projectCity: z.string().trim().min(1).max(120),
     projectPostcode: z.string().trim().min(2).max(12),
     projectType: projectTypeEnum,
-    pmScheduleScore: score1to10,
-    pmTenderDistribScore: score1to10,
-    pmDtmProfessionalScore: score1to10,
-    pmImpartialScore: score1to10,
-    pmCoordinationScore: score1to10,
-    pmDecisionsScore: score1to10,
-    pmFragmentationScore: score1to10,
-    pmCommunicationScore: score1to10,
-    pmRealisticScore: score1to10,
-    pmDtmFairnessScore: score1to10,
+    ...pmScoresRequired,
     // Optional QS block — required only if this PM also acted as the QS.
     alsoActedAsQs: z.boolean(),
     ...qsScoresOptional,
@@ -630,6 +661,134 @@ export async function submitQuantitySurveyorReport(
     });
   } catch (error) {
     console.error("Failed to create quantity surveyor report", error);
+    return {
+      ok: false,
+      formError: "Something went wrong saving your report. Please try again.",
+    };
+  }
+
+  redirect("/submit-report/success");
+}
+
+// ---------------------------------------------------------------------------
+// Architect-PM (design role; may also have acted as PM and/or QS)
+// ---------------------------------------------------------------------------
+
+const arScoreKeys = Object.keys(arScoresRequired) as (keyof typeof arScoresRequired)[];
+
+/** Pull the 10 PM score columns from a parsed object (null when absent). */
+function pmColumns(d: Record<string, unknown>): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  for (const k of pmScoreKeys) {
+    const v = d[k];
+    out[k] = typeof v === "number" ? v : null;
+  }
+  return out;
+}
+
+/** Pull the 9 architect score columns from a parsed object. */
+function arColumns(d: Record<string, unknown>): Record<string, number | null> {
+  const out: Record<string, number | null> = {};
+  for (const k of arScoreKeys) {
+    const v = d[k];
+    out[k] = typeof v === "number" ? v : null;
+  }
+  return out;
+}
+
+const architectPmSchema = z
+  .object({
+    ...reporterShape,
+    entityName: z.string().trim().min(1).max(200),
+    spReporterRole: z.string().trim().min(1).max(120),
+    projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+    projectCity: z.string().trim().min(1).max(120),
+    projectPostcode: z.string().trim().min(2).max(12),
+    projectType: projectTypeEnum,
+    ...arScoresRequired,
+    alsoActedAsPm: z.boolean(),
+    ...pmScoresOptional,
+    alsoActedAsQs: z.boolean(),
+    ...qsScoresOptional,
+    issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
+    evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+    consents: serviceProviderConsents,
+  })
+  .superRefine((d, ctx) => {
+    const dd = d as Record<string, unknown>;
+    if (d.alsoActedAsPm) {
+      for (const k of pmScoreKeys) {
+        if (typeof dd[k] !== "number") {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Pick 1–10", path: [k] });
+        }
+      }
+    }
+    if (d.alsoActedAsQs) {
+      for (const k of qsScoreKeys) {
+        if (typeof dd[k] !== "number") {
+          ctx.addIssue({ code: z.ZodIssueCode.custom, message: "Pick 1–10", path: [k] });
+        }
+      }
+    }
+  });
+
+export async function submitArchitectPmReport(
+  input: unknown,
+): Promise<SubmitState> {
+  const parsed = architectPmSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      formError: "Please complete all required fields correctly.",
+    };
+  }
+  const d = parsed.data;
+  const dd = d as Record<string, unknown>;
+
+  const ar = arColumns(dd);
+  const arScores = arScoreKeys.map((k) => ar[k] ?? 0);
+  const overall = Math.round(arScores.reduce((s, n) => s + n, 0) / arScores.length);
+
+  try {
+    await createRiskReport({
+      reporterCompanyName: d.reporterCompanyName,
+      reporterContactName: d.reporterContactName,
+      reporterEmail: d.reporterEmail,
+      reporterPhone: d.reporterPhone || null,
+      reporterTradeType: d.reporterTradeType,
+
+      entityType: "ARCHITECT_PM",
+      entityName: d.entityName,
+      clientInitials: null,
+      isResidential: false,
+
+      projectAddressLine1: d.projectAddressLine1 || null,
+      projectCity: d.projectCity,
+      projectPostcode: d.projectPostcode,
+      publicArea: outwardCode(d.projectPostcode),
+      projectType: d.projectType,
+
+      // Legacy payment-centric fields — neutral placeholders.
+      paymentScore: overall,
+      communicationScore: overall,
+      variationRisk: "LOW",
+      disputeRisk: "LOW",
+
+      issueDescription: (d.issueDescription || "").trim(),
+      evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
+      consentsAcceptedAt: new Date(),
+
+      spReporterRole: d.spReporterRole,
+      ...ar,
+      alsoActedAsPm: d.alsoActedAsPm,
+      ...(d.alsoActedAsPm ? pmColumns(dd) : {}),
+      alsoActedAsQs: d.alsoActedAsQs,
+      ...(d.alsoActedAsQs ? qsColumns(dd) : {}),
+
+      visibility: "PUBLIC",
+    });
+  } catch (error) {
+    console.error("Failed to create architect-PM report", error);
     return {
       ok: false,
       formError: "Something went wrong saving your report. Please try again.",

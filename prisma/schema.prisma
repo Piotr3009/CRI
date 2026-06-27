@@ -33,6 +33,7 @@ enum EntityType {
   MAIN_CONTRACTOR
   PROJECT_MANAGER
   QUANTITY_SURVEYOR
+  ARCHITECT_PM
   MANAGEMENT_COMPANY
   HOUSING_ASSOCIATION
 }
@@ -244,6 +245,20 @@ model RiskReport {
 
   // Łączone role — PM/architekt mógł być też QS (blok QS wypełniony)
   alsoActedAsQs Boolean?
+
+  // Architect-PM — wszystkie 1-10
+  arDrawingsAccurateScore Int? // rysunki dokładne (wymiary zgodne)
+  arCompletenessScore     Int? // dokumentacja kompletna
+  arCoordinationScore     Int? // rysunki branż skoordynowane
+  arErrorFreeScore        Int? // wolny od błędów wymuszających przeróbki
+  arTimelinessScore       Int? // info/rysunki/RFI/zmiany na czas (3-w-1)
+  arFewChangesScore       Int? // rozsądnie mało zmian projektu
+  arBuildabilityScore     Int? // otwarty na sugestie wykonawcy (buildability)
+  arImpartialScore        Int? // bezstronny/uczciwy
+  arWouldRecommendScore   Int? // poleciłbyś ponownie
+
+  // Architekt mógł być też PM (blok PM wypełniony)
+  alsoActedAsPm Boolean?
 
   // Evidence types the reporter claims to hold (checkboxes), e.g.
   // "INVOICES,SMS_EMAIL,PHOTOS,BANK_STATEMENT,OTHER". Files come later.

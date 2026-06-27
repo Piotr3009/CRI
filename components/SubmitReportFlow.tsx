@@ -7,6 +7,7 @@ import {
   submitMainContractorReport,
   submitProjectManagerReport,
   submitQuantitySurveyorReport,
+  submitArchitectPmReport,
 } from "@/app/submit-report/actions";
 import {
   PROJECT_TYPE_LABELS,
@@ -29,7 +30,7 @@ const TYPE_TILES: TypeTile[] = [
   { value: "RESIDENTIAL_CLIENT", title: "Private client", subtitle: "individual", active: true },
   { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: true },
   { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: true },
-  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: false },
+  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: true },
   { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: true },
   { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: true },
 ];
@@ -110,6 +111,18 @@ const QS_QUESTIONS: { key: QsKey; label: string }[] = [
   { key: "qsWouldRecommendScore", label: "Would you work with this QS again?" },
 ];
 
+const AR_QUESTIONS: { key: ArKey; label: string }[] = [
+  { key: "arDrawingsAccurateScore", label: "Were the drawings accurate (dimensions matched reality)?" },
+  { key: "arCompletenessScore", label: "Was the documentation complete (everything you needed to build)?" },
+  { key: "arCoordinationScore", label: "Were the drawings coordinated across disciplines (architecture / structure / services didn't clash)?" },
+  { key: "arErrorFreeScore", label: "Was the design free of errors that forced rework?" },
+  { key: "arTimelinessScore", label: "Did they deliver information, drawings, RFI answers and design changes on time, without blocking the works?" },
+  { key: "arFewChangesScore", label: "Were design changes reasonably limited (not constantly changing their mind)?" },
+  { key: "arBuildabilityScore", label: "Were they open to the contractor's buildability suggestions?" },
+  { key: "arImpartialScore", label: "Were they impartial and fair, rather than protecting themselves / the client at your expense?" },
+  { key: "arWouldRecommendScore", label: "Would you work with this architect again?" },
+];
+
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // ---------------------------------------------------------------------------
@@ -164,6 +177,17 @@ type QsKey =
   | "qsImpartialScore"
   | "qsCommunicationScore"
   | "qsWouldRecommendScore";
+
+type ArKey =
+  | "arDrawingsAccurateScore"
+  | "arCompletenessScore"
+  | "arCoordinationScore"
+  | "arErrorFreeScore"
+  | "arTimelinessScore"
+  | "arFewChangesScore"
+  | "arBuildabilityScore"
+  | "arImpartialScore"
+  | "arWouldRecommendScore";
 
 type PayRow = { daysLate: string; amountGbp: string };
 
@@ -433,6 +457,20 @@ export function SubmitReportFlow() {
     qsWouldRecommendScore: "",
   });
 
+  // Architect-PM scores + "also acted as PM"
+  const [alsoActedAsPm, setAlsoActedAsPm] = useState(false);
+  const [arScores, setArScores] = useState<Record<ArKey, string>>({
+    arDrawingsAccurateScore: "",
+    arCompletenessScore: "",
+    arCoordinationScore: "",
+    arErrorFreeScore: "",
+    arTimelinessScore: "",
+    arFewChangesScore: "",
+    arBuildabilityScore: "",
+    arImpartialScore: "",
+    arWouldRecommendScore: "",
+  });
+
   // Payments
   const [payRows, setPayRows] = useState<PayRow[]>([{ daysLate: "", amountGbp: "" }]);
 
@@ -476,7 +514,8 @@ export function SubmitReportFlow() {
   const isPaying = isPrivate || isCommercial || isMainContractor;
   const isPM = selectedType === "PROJECT_MANAGER";
   const isQS = selectedType === "QUANTITY_SURVEYOR";
-  const isServiceProvider = isPM || isQS;
+  const isArchitectPm = selectedType === "ARCHITECT_PM";
+  const isServiceProvider = isPM || isQS || isArchitectPm;
 
   // --- Payment count control -------------------------------------------------
   function setPaymentCount(nRaw: number) {
@@ -580,7 +619,17 @@ export function SubmitReportFlow() {
       if (!entityName.trim()) e.entityName = "Required";
       if (!spReporterRole.trim()) e.spReporterRole = "Required";
 
-      if (isPM) {
+      if (isArchitectPm) {
+        AR_QUESTIONS.forEach((q) => {
+          const v = Number(arScores[q.key]);
+          if (!arScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
+            e[q.key] = "Pick 1–10";
+          }
+        });
+      }
+
+      // PM questions: on the PM tile, or when an architect also acted as PM.
+      if (isPM || (isArchitectPm && alsoActedAsPm)) {
         PM_QUESTIONS.forEach((q) => {
           const v = Number(pmScores[q.key]);
           if (!pmScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
@@ -589,8 +638,8 @@ export function SubmitReportFlow() {
         });
       }
 
-      // QS questions: on the QS tile, or when a PM also acted as the QS.
-      if (isQS || (isPM && alsoActedAsQs)) {
+      // QS questions: on the QS tile, or when a PM/architect also acted as QS.
+      if (isQS || ((isPM || isArchitectPm) && alsoActedAsQs)) {
         QS_QUESTIONS.forEach((q) => {
           const v = Number(qsScores[q.key]);
           if (!qsScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
@@ -644,6 +693,7 @@ export function SubmitReportFlow() {
     "variationsNoPaper",
     "retentionStatus",
     "projectReadiness",
+    ...AR_QUESTIONS.map((q) => q.key),
     ...PM_QUESTIONS.map((q) => q.key),
     ...QS_QUESTIONS.map((q) => q.key),
     ...payRows.map((_, i) => `pay_${i}`),
@@ -753,19 +803,34 @@ export function SubmitReportFlow() {
         },
       };
 
+      const pmNums = {
+        pmScheduleScore: Number(pmScores.pmScheduleScore),
+        pmTenderDistribScore: Number(pmScores.pmTenderDistribScore),
+        pmDtmProfessionalScore: Number(pmScores.pmDtmProfessionalScore),
+        pmImpartialScore: Number(pmScores.pmImpartialScore),
+        pmCoordinationScore: Number(pmScores.pmCoordinationScore),
+        pmDecisionsScore: Number(pmScores.pmDecisionsScore),
+        pmFragmentationScore: Number(pmScores.pmFragmentationScore),
+        pmCommunicationScore: Number(pmScores.pmCommunicationScore),
+        pmRealisticScore: Number(pmScores.pmRealisticScore),
+        pmDtmFairnessScore: Number(pmScores.pmDtmFairnessScore),
+      };
+      const arNums = {
+        arDrawingsAccurateScore: Number(arScores.arDrawingsAccurateScore),
+        arCompletenessScore: Number(arScores.arCompletenessScore),
+        arCoordinationScore: Number(arScores.arCoordinationScore),
+        arErrorFreeScore: Number(arScores.arErrorFreeScore),
+        arTimelinessScore: Number(arScores.arTimelinessScore),
+        arFewChangesScore: Number(arScores.arFewChangesScore),
+        arBuildabilityScore: Number(arScores.arBuildabilityScore),
+        arImpartialScore: Number(arScores.arImpartialScore),
+        arWouldRecommendScore: Number(arScores.arWouldRecommendScore),
+      };
+
       if (isPM) {
         res = await submitProjectManagerReport({
           ...spReporter,
-          pmScheduleScore: Number(pmScores.pmScheduleScore),
-          pmTenderDistribScore: Number(pmScores.pmTenderDistribScore),
-          pmDtmProfessionalScore: Number(pmScores.pmDtmProfessionalScore),
-          pmImpartialScore: Number(pmScores.pmImpartialScore),
-          pmCoordinationScore: Number(pmScores.pmCoordinationScore),
-          pmDecisionsScore: Number(pmScores.pmDecisionsScore),
-          pmFragmentationScore: Number(pmScores.pmFragmentationScore),
-          pmCommunicationScore: Number(pmScores.pmCommunicationScore),
-          pmRealisticScore: Number(pmScores.pmRealisticScore),
-          pmDtmFairnessScore: Number(pmScores.pmDtmFairnessScore),
+          ...pmNums,
           alsoActedAsQs,
           ...(alsoActedAsQs ? qsNums : {}),
         });
@@ -773,6 +838,15 @@ export function SubmitReportFlow() {
         res = await submitQuantitySurveyorReport({
           ...spReporter,
           ...qsNums,
+        });
+      } else if (isArchitectPm) {
+        res = await submitArchitectPmReport({
+          ...spReporter,
+          ...arNums,
+          alsoActedAsPm,
+          ...(alsoActedAsPm ? pmNums : {}),
+          alsoActedAsQs,
+          ...(alsoActedAsQs ? qsNums : {}),
         });
       } else if (isMainContractor) {
         res = await submitMainContractorReport({
@@ -1435,9 +1509,11 @@ export function SubmitReportFlow() {
                   id="entityName"
                   className={inp(errors.entityName)}
                   placeholder={
-                    isQS
-                      ? "e.g. ABC Cost Consultants Ltd"
-                      : "e.g. ABC Project Management Ltd"
+                    isArchitectPm
+                      ? "e.g. ABC Architects Ltd"
+                      : isQS
+                        ? "e.g. ABC Cost Consultants Ltd"
+                        : "e.g. ABC Project Management Ltd"
                   }
                   value={entityName}
                   onChange={(e) => setEntityName(e.target.value)}
@@ -1448,15 +1524,23 @@ export function SubmitReportFlow() {
                 required
                 error={errors.spReporterRole}
                 hint={
-                  isQS
-                    ? "Function, not a person's name — e.g. Senior QS, Cost Consultant."
-                    : "Function, not a person's name — e.g. Project Manager, Senior PM."
+                  isArchitectPm
+                    ? "Function, not a person's name — e.g. Project Architect, Architectural Technician."
+                    : isQS
+                      ? "Function, not a person's name — e.g. Senior QS, Cost Consultant."
+                      : "Function, not a person's name — e.g. Project Manager, Senior PM."
                 }
               >
                 <input
                   id="spReporterRole"
                   className={inp(errors.spReporterRole)}
-                  placeholder={isQS ? "e.g. Senior QS" : "e.g. Project Manager"}
+                  placeholder={
+                    isArchitectPm
+                      ? "e.g. Project Architect"
+                      : isQS
+                        ? "e.g. Senior QS"
+                        : "e.g. Project Manager"
+                  }
                   value={spReporterRole}
                   onChange={(e) => setSpReporterRole(e.target.value)}
                 />
@@ -1505,7 +1589,51 @@ export function SubmitReportFlow() {
             </div>
           </Section>
 
-          {isPM && (
+          {isArchitectPm && (
+            <Section
+              title="Architect — design quality"
+              description="Rate each from 1 (poor) to 10 (excellent). Averages and gauges are built later from many reports."
+            >
+              <ScoreList
+                questions={AR_QUESTIONS}
+                get={(k) => arScores[k as ArKey] ?? ""}
+                set={(k, v) =>
+                  setArScores((prev) => ({ ...prev, [k as ArKey]: v }))
+                }
+                errors={errors}
+              />
+            </Section>
+          )}
+
+          {isArchitectPm && (
+            <Section
+              title="Did this architect also act as the PM?"
+              description="On smaller projects the architect often runs the project too. Tick yes to also rate their PM work."
+            >
+              <div className="inline-flex rounded-lg border border-gray-300 p-0.5">
+                {[
+                  { v: false, label: "No" },
+                  { v: true, label: "Yes — also the PM" },
+                ].map((o) => (
+                  <button
+                    key={String(o.v)}
+                    type="button"
+                    onClick={() => setAlsoActedAsPm(o.v)}
+                    className={
+                      "rounded-md px-3 py-1.5 text-sm transition " +
+                      (alsoActedAsPm === o.v
+                        ? "bg-cri-green text-white"
+                        : "text-cri-steel hover:bg-gray-100")
+                    }
+                  >
+                    {o.label}
+                  </button>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {(isPM || (isArchitectPm && alsoActedAsPm)) && (
             <Section
               title="Project manager — performance"
               description="Rate each from 1 (poor) to 10 (excellent). Averages and gauges are built later from many reports."
@@ -1521,9 +1649,13 @@ export function SubmitReportFlow() {
             </Section>
           )}
 
-          {isPM && (
+          {(isPM || isArchitectPm) && (
             <Section
-              title="Was this PM also the QS?"
+              title={
+                isArchitectPm
+                  ? "Did this architect also act as the QS?"
+                  : "Was this PM also the QS?"
+              }
               description="On smaller projects the same person often runs both. Tick yes to also rate their QS / cost work."
             >
               <div className="inline-flex rounded-lg border border-gray-300 p-0.5">
@@ -1549,7 +1681,7 @@ export function SubmitReportFlow() {
             </Section>
           )}
 
-          {(isQS || (isPM && alsoActedAsQs)) && (
+          {(isQS || ((isPM || isArchitectPm) && alsoActedAsQs)) && (
             <Section
               title="Quantity surveyor — assessment"
               description="Rate each from 1 (poor) to 10 (excellent). Facts first — averages come later."

@@ -26,6 +26,7 @@ export const ENTITY_TYPE_LABELS: Record<EntityType, string> = {
   MAIN_CONTRACTOR: "Main Contractor",
   PROJECT_MANAGER: "Project Manager",
   QUANTITY_SURVEYOR: "Quantity Surveyor",
+  ARCHITECT_PM: "Architect / PM",
   MANAGEMENT_COMPANY: "Management Company",
   HOUSING_ASSOCIATION: "Housing Association",
 };
