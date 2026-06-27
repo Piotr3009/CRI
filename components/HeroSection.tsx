@@ -17,7 +17,7 @@ export function HeroSection() {
           </h1>
 
           <p className="mt-5 max-w-xl text-lg leading-relaxed text-cri-steel">
-            CTX helps UK contractors check payment, client, main contractor,
+            CIX helps UK contractors check payment, client, main contractor,
             developer, PM, QS and project risk before accepting work.
           </p>
 

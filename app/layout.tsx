@@ -7,8 +7,8 @@ import { VisitTracker } from "@/components/VisitTracker";
 export const metadata: Metadata = {
   metadataBase: new URL("https://cri.example"),
   title: {
-    default: "CTX — Construction Trust Exchange for UK Contractors",
-    template: "%s — CTX",
+    default: "CIX — Construction Information Exchange for UK Contractors",
+    template: "%s — CIX",
   },
   description:
     "Check client, payment, main contractor, developer, PM, QS and project risk before accepting construction work. Evidence-backed risk reports for UK contractors.",
@@ -21,7 +21,7 @@ export const metadata: Metadata = {
     "project risk",
   ],
   openGraph: {
-    title: "CTX — Construction Trust Exchange",
+    title: "CIX — Construction Information Exchange",
     description:
       "Evidence-backed client, payment and project risk reports for UK contractors. Know the risk before you price the job.",
     type: "website",

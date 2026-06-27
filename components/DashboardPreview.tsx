@@ -183,7 +183,7 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
               <RiskBadge level="MEDIUM" label="Dispute" />
             </div>
             <p className="mt-2 text-[11px] text-cri-steel">
-              Based on 4 reports · contractor-submitted, not CTX&rsquo;s opinion.
+              Based on 4 reports · contractor-submitted, not CIX&rsquo;s opinion.
             </p>
           </div>
 

@@ -57,7 +57,7 @@ export function ReportCard({
       </div>
 
       <p className="mt-2 text-[11px] text-cri-steel">
-        Contractor-submitted, not CTX&rsquo;s opinion.
+        Contractor-submitted, not CIX&rsquo;s opinion.
       </p>
 
       <div className="mt-3 flex flex-wrap gap-2">

@@ -98,19 +98,19 @@ export default function HomePage() {
             <p className="text-2xl font-semibold leading-snug tracking-tight text-cri-charcoal sm:text-3xl">
               Every contractor learns the same lesson separately.{" "}
               <span className="text-cri-green">
-                CTX helps the industry learn together.
+                CIX helps the industry learn together.
               </span>
             </p>
           </div>
         </div>
       </section>
 
-      {/* D. What CTX tracks */}
+      {/* D. What CIX tracks */}
       <section className="bg-white py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-wider text-cri-green">
-              What CTX tracks
+              What CIX tracks
             </p>
             <h2 className="mt-2 text-3xl font-bold tracking-tight text-cri-charcoal">
               Six dimensions of project risk

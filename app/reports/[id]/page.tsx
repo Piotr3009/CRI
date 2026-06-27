@@ -37,7 +37,7 @@ export async function generateMetadata({
     title: `Risk Report — ${publicLabel(report)}`,
     description: report.publicSummary
       ? report.publicSummary.slice(0, 155)
-      : "Moderated construction risk report on CTX.",
+      : "Moderated construction risk report on CIX.",
     robots: indexable
       ? { index: true, follow: true }
       : { index: false, follow: true },
@@ -113,7 +113,7 @@ export default async function ReportPage({
         <p className="mt-2 text-xs text-cri-steel">
           Based on {reportCount} contractor{" "}
           {reportCount === 1 ? "report" : "reports"}. Scores are
-          contractor-submitted, not CTX&rsquo;s opinion.
+          contractor-submitted, not CIX&rsquo;s opinion.
         </p>
 
         <div className="mt-4 flex flex-wrap gap-2">

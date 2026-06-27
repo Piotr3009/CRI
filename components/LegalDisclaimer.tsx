@@ -19,16 +19,16 @@ export function LegalDisclaimer({
       <p className="text-xs leading-relaxed text-cri-steel">
         {variant === "compact" ? (
           <>
-            CTX reports are based on contractor-submitted experiences and
+            CIX reports are based on contractor-submitted experiences and
             moderated evidence. Reports indicate risk patterns, not legal
             findings.
           </>
         ) : (
           <>
-            CTX reports indicate contractor-submitted risk patterns and moderated
-            experiences. CTX does not make legal findings of wrongdoing. Scores
+            CIX reports indicate contractor-submitted risk patterns and moderated
+            experiences. CIX does not make legal findings of wrongdoing. Scores
             and risk levels reflect a contractor&rsquo;s reported experience and
-            CTX&rsquo;s moderation, and may be subject to a right to reply,
+            CIX&rsquo;s moderation, and may be subject to a right to reply,
             correction or removal. This information is provided to help assess
             risk and is not legal advice.
           </>

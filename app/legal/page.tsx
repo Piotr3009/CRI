@@ -4,15 +4,15 @@ import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 export const metadata: Metadata = {
   title: "Legal and Data Protection",
   description:
-    "How CTX handles contractor-submitted reports, evidence-based moderation, residential privacy, right to reply, data protection and removal requests.",
+    "How CIX handles contractor-submitted reports, evidence-based moderation, residential privacy, right to reply, data protection and removal requests.",
 };
 
 const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
   {
-    title: "CTX is not legal advice",
+    title: "CIX is not legal advice",
     body: (
       <p>
-        CTX is an information and risk-assessment platform. Nothing on CTX
+        CIX is an information and risk-assessment platform. Nothing on CIX
         constitutes legal advice, a credit reference, or a professional
         recommendation. Risk scores and summaries are intended to help
         contractors assess potential risk before pricing or accepting work. You
@@ -26,7 +26,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
       <p>
         Reports are submitted by contractors describing their own first-hand
         business experience on a project. They reflect the reporter&rsquo;s
-        account and CTX&rsquo;s moderation. CTX does not independently verify
+        account and CIX&rsquo;s moderation. CIX does not independently verify
         every statement and does not make findings of fact or wrongdoing.
       </p>
     ),
@@ -38,7 +38,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
         Risk scores, percentages and overall risk levels (such as a payment
         score or an &ldquo;Overall: High&rdquo; label) are calculated
         automatically as an aggregate of contractor-submitted ratings for that
-        entity. They are not CTX&rsquo;s own opinion, judgement or verdict, and
+        entity. They are not CIX&rsquo;s own opinion, judgement or verdict, and
         they are not a statement that any party has acted unlawfully or
         improperly. Where only a small number of reports exist, an aggregate may
         reflect very few experiences and should be read with caution.
@@ -55,13 +55,13 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
           supporting evidence. By submitting, you confirm: &ldquo;I acknowledge
           that I am solely responsible for the content of this report, including
           its truthfulness, accuracy, legality and any supporting evidence. I
-          understand that CTX publishes contractor-submitted experiences and
+          understand that CIX publishes contractor-submitted experiences and
           does not independently verify every factual statement.&rdquo;
         </p>
         <p className="mt-3">
           If a report you submit is found to be unlawful (for example
           defamatory or in breach of data-protection law), you agree to
-          reimburse CTX for the losses, costs and reasonable legal expenses CTX
+          reimburse CIX for the losses, costs and reasonable legal expenses CIX
           incurs as a result.
         </p>
       </>
@@ -85,7 +85,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     title: "Evidence-based moderation",
     body: (
       <p>
-        Reports are reviewed before publication. CTX may request supporting
+        Reports are reviewed before publication. CIX may request supporting
         evidence, edit or anonymise content, restrict visibility, or reject a
         report. The evidence status shown on a report indicates how well it is
         supported, from unverified through to documented or legal evidence.
@@ -97,7 +97,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     title: "No anonymous public accusations",
     body: (
       <p>
-        CTX is not a blacklist, a revenge platform, or a public shaming board.
+        CIX is not a blacklist, a revenge platform, or a public shaming board.
         Reporter identities are recorded privately, public wording is kept
         measured and factual, and reports describe risk patterns rather than
         making accusations.
@@ -109,7 +109,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     body: (
       <p>
         To submit a report you must register an account and may be asked to
-        verify that you are a genuine contractor or business. CTX may decline,
+        verify that you are a genuine contractor or business. CIX may decline,
         suspend or remove accounts, and may withhold or down-weight reports from
         accounts that cannot be verified. Verification helps protect everyone
         named on the platform and supports the right to reply.
@@ -146,7 +146,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     body: (
       <p>
         Anyone connected to a report may request a review or submit a right to
-        reply from the report page. Submissions are reviewed by moderation. CTX
+        reply from the report page. Submissions are reviewed by moderation. CIX
         may publish a response, annotate, correct, restrict or remove a report in
         light of a reply.
       </p>
@@ -158,7 +158,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
       <p>
         If you believe a report is inaccurate, you can raise a dispute via the
         right to reply or the contact details below. Disputed reports may be
-        marked accordingly while reviewed. CTX aims to correct or restrict
+        marked accordingly while reviewed. CIX aims to correct or restrict
         inaccurate content promptly once substantiated.
       </p>
     ),
@@ -167,7 +167,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     title: "Data protection",
     body: (
       <p>
-        CTX processes personal data in line with applicable UK data protection
+        CIX processes personal data in line with applicable UK data protection
         law (including UK GDPR and the Data Protection Act 2018). We collect only
         what is needed to operate the platform, restrict sensitive residential
         data, and apply data minimisation to public displays. This MVP is a
@@ -191,9 +191,9 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     title: "Defamation-sensitive wording",
     body: (
       <p>
-        CTX deliberately avoids language that asserts criminality, dishonesty or
+        CIX deliberately avoids language that asserts criminality, dishonesty or
         wrongdoing. Reports indicate contractor-submitted risk patterns and
-        moderated experiences. CTX does not make legal findings of wrongdoing.
+        moderated experiences. CIX does not make legal findings of wrongdoing.
       </p>
     ),
   },
@@ -201,8 +201,8 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     title: "Limitation of liability",
     body: (
       <p>
-        CTX is a reporting platform &mdash; not an investigator, arbitrator,
-        regulator or court. To the fullest extent permitted by law, CTX is not
+        CIX is a reporting platform &mdash; not an investigator, arbitrator,
+        regulator or court. To the fullest extent permitted by law, CIX is not
         liable for decisions you make based on information on the platform, for
         the accuracy of contractor-submitted content, or for indirect or
         consequential loss. Nothing in these terms excludes liability that
@@ -214,7 +214,7 @@ const SECTIONS: { id?: string; title: string; body: React.ReactNode }[] = [
     title: "Governing law",
     body: (
       <p>
-        These terms and your use of CTX are governed by the law of England and
+        These terms and your use of CIX are governed by the law of England and
         Wales, and the courts of England and Wales have exclusive jurisdiction.
       </p>
     ),
@@ -241,7 +241,7 @@ export default function LegalPage() {
         Legal and data protection
       </h1>
       <p className="mt-3 text-cri-steel">
-        How CTX handles reports, evidence, privacy and your rights. Please read
+        How CIX handles reports, evidence, privacy and your rights. Please read
         this alongside any report you view.
       </p>
 

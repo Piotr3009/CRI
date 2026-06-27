@@ -17,10 +17,10 @@ function Logo() {
       </span>
       <span className="leading-tight">
         <span className="block text-lg font-bold tracking-tight text-cri-charcoal">
-          CTX
+          CIX
         </span>
         <span className="block text-[10px] font-medium uppercase tracking-wider text-cri-steel">
-          Construction Trust Exchange
+          Construction Information Exchange
         </span>
       </span>
     </Link>

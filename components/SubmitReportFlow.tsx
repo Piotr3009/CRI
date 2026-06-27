@@ -53,8 +53,8 @@ const EVIDENCE_OPTIONS: { value: string; label: string }[] = [
 
 const CONSENT_ITEMS: { key: keyof Consents; label: string }[] = [
   { key: "realExperience", label: "I confirm this is based on my own real, first-hand experience." },
-  { key: "canProvide", label: "I can provide evidence on request from CTX." },
-  { key: "allowModeration", label: "I understand CTX may moderate, anonymise, restrict or reject this report." },
+  { key: "canProvide", label: "I can provide evidence on request from CIX." },
+  { key: "allowModeration", label: "I understand CIX may moderate, anonymise, restrict or reject this report." },
   { key: "notAutoPublished", label: "I understand this report is not published automatically." },
   { key: "notRevenge", label: "I confirm this is a fair account, not malicious or revenge." },
   { key: "allPaymentsDeclared", label: "I confirm these are ALL payments under this contract — not only the late ones." },
@@ -1134,7 +1134,7 @@ export function SubmitReportFlow() {
                   </p>
                   <p className="text-xs text-cri-steel">
                     Secure file upload is coming soon. For now, tick what you
-                    hold above — CTX may request it.
+                    hold above — CIX may request it.
                   </p>
                 </div>
                 <button
