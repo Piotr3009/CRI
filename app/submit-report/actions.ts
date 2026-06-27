@@ -44,6 +44,8 @@ const reporterShape = {
 };
 
 const projectShape = {
+  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+  projectCity: z.string().trim().min(1).max(120),
   projectPostcode: z.string().trim().min(2).max(12),
   projectType: projectTypeEnum,
   contractValueGbp: z.number().int().min(0).max(1000000000),
@@ -111,12 +113,10 @@ const privateClientSchema = z.object({
   clientInitials: z.string().trim().min(1).max(12),
 });
 
-// Commercial client → a company (public). Full name + address allowed.
+// Commercial client → a company (public). Full name allowed; address internal.
 const commercialClientSchema = z.object({
   ...commonShape,
   entityName: z.string().trim().min(1).max(200),
-  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
-  projectCity: z.string().trim().min(1).max(120),
   courtDispute: z.enum(["YES", "NO"]),
 });
 
@@ -132,8 +132,6 @@ const optionalAmount = z
 const mainContractorSchema = z.object({
   ...commonShape,
   entityName: z.string().trim().min(1).max(200),
-  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
-  projectCity: z.string().trim().min(1).max(120),
   courtDispute: z.enum(["YES", "NO"]),
   // Chain-specific
   backChargesUnagreed: behaviour,
@@ -211,7 +209,12 @@ function commonComputed(d: CommonInput) {
     reporterPhone: d.reporterPhone || null,
     reporterTradeType: d.reporterTradeType,
 
-    // Project
+    // Project — address is INTERNAL (never shown publicly; privacy.ts
+    // only ever exposes publicArea, which is the outward code / region).
+    projectAddressLine1: d.projectAddressLine1 || null,
+    projectCity: d.projectCity,
+    projectPostcode: d.projectPostcode,
+    publicArea: outwardCode(d.projectPostcode),
     projectType: d.projectType,
     contractValueGbp: d.contractValueGbp,
     contractLength: d.contractLength,
@@ -279,8 +282,6 @@ export async function submitPrivateClientReport(
       entityName: null,
       clientInitials: d.clientInitials,
       isResidential: true,
-      projectPostcode: d.projectPostcode,
-      publicArea: outwardCode(d.projectPostcode),
       // Residential defaults to restricted; moderation gates publication.
       visibility: "VERIFIED_CONTRACTORS_ONLY",
     });
@@ -314,11 +315,6 @@ export async function submitCommercialClientReport(
       entityName: d.entityName,
       clientInitials: null,
       isResidential: false,
-      projectAddressLine1: d.projectAddressLine1 || null,
-      projectCity: d.projectCity,
-      projectPostcode: d.projectPostcode,
-      // Company address is public — show the full postcode.
-      publicArea: d.projectPostcode.trim().toUpperCase(),
       // Court dispute reuses the existing formalDispute field (YES / NO).
       formalDispute: d.courtDispute,
       // Companies are public; moderation still gates publication.
@@ -354,10 +350,6 @@ export async function submitMainContractorReport(
       entityName: d.entityName,
       clientInitials: null,
       isResidential: false,
-      projectAddressLine1: d.projectAddressLine1 || null,
-      projectCity: d.projectCity,
-      projectPostcode: d.projectPostcode,
-      publicArea: d.projectPostcode.trim().toUpperCase(),
       formalDispute: d.courtDispute,
       visibility: "PUBLIC",
       // Chain-specific

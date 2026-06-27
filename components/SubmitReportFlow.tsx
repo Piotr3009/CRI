@@ -384,14 +384,13 @@ export function SubmitReportFlow() {
 
     if (isCompany) {
       if (!entityName.trim()) e.entityName = "Required";
-      if (!projectCity.trim()) e.projectCity = "Required";
-      if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
-      if (courtDispute !== "YES" && courtDispute !== "NO")
-        e.courtDispute = "Please answer";
     } else {
       if (!clientInitials.trim()) e.clientInitials = "Required";
-      if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
     }
+    if (!projectCity.trim()) e.projectCity = "Required";
+    if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
+    if (isCompany && courtDispute !== "YES" && courtDispute !== "NO")
+      e.courtDispute = "Please answer";
 
     if (isMainContractor) {
       if (backCharges === "") e.backCharges = "Please answer";
@@ -511,6 +510,8 @@ export function SubmitReportFlow() {
       reporterPhone: reporterPhone.trim(),
       reporterTradeType: reporterTradeType.trim(),
 
+      projectAddressLine1: projectAddressLine1.trim(),
+      projectCity: projectCity.trim(),
       projectPostcode: projectPostcode.trim(),
       projectType,
       contractValueGbp: Number(contractValueGbp),
@@ -548,8 +549,6 @@ export function SubmitReportFlow() {
         res = await submitMainContractorReport({
           ...shared,
           entityName: entityName.trim(),
-          projectAddressLine1: projectAddressLine1.trim(),
-          projectCity: projectCity.trim(),
           courtDispute,
           backChargesUnagreed: backCharges,
           backChargesAmountGbp:
@@ -564,8 +563,6 @@ export function SubmitReportFlow() {
         res = await submitCommercialClientReport({
           ...shared,
           entityName: entityName.trim(),
-          projectAddressLine1: projectAddressLine1.trim(),
-          projectCity: projectCity.trim(),
           courtDispute,
         });
       } else {
@@ -689,9 +686,9 @@ export function SubmitReportFlow() {
       {selectedType && !isPaying && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-cri-steel">
           This survey type is coming soon. Right now you can submit a{" "}
-          <strong className="text-cri-charcoal">Private client</strong> or{" "}
-          <strong className="text-cri-charcoal">Commercial client</strong>{" "}
-          report.
+          <strong className="text-cri-charcoal">Private client</strong>,{" "}
+          <strong className="text-cri-charcoal">Commercial client</strong> or{" "}
+          <strong className="text-cri-charcoal">Main contractor</strong> report.
         </div>
       )}
 
@@ -702,81 +699,69 @@ export function SubmitReportFlow() {
             title="Who you are reporting"
             description={
               isCompany
-                ? "Companies are public (Companies House) — full name and address may be shown."
-                : "Private clients are recorded by initials only — never a full name."
+                ? "Public reports show the company name and the project area only (e.g. SW19) — never the full project address."
+                : "Private clients are shown by initials and area only — never a full name or full address."
             }
           >
             <div className="grid gap-4 sm:grid-cols-2">
               {isCompany ? (
-                <>
-                  <Field label="Company name" required error={errors.entityName}>
-                    <input
-                      id="entityName"
-                      className={inp(errors.entityName)}
-                      placeholder="e.g. ABC Construction Ltd"
-                      value={entityName}
-                      onChange={(e) => setEntityName(e.target.value)}
-                    />
-                  </Field>
-                  <Field label="Address line">
-                    <input
-                      className={inputClass}
-                      value={projectAddressLine1}
-                      onChange={(e) => setProjectAddressLine1(e.target.value)}
-                    />
-                  </Field>
-                  <Field label="City / town" required error={errors.projectCity}>
-                    <input
-                      id="projectCity"
-                      className={inp(errors.projectCity)}
-                      value={projectCity}
-                      onChange={(e) => setProjectCity(e.target.value)}
-                    />
-                  </Field>
-                  <Field
-                    label="Postcode"
-                    required
-                    error={errors.projectPostcode}
-                    hint="Full postcode — company address is public."
-                  >
-                    <input
-                      id="projectPostcode"
-                      className={inp(errors.projectPostcode)}
-                      value={projectPostcode}
-                      onChange={(e) => setProjectPostcode(e.target.value)}
-                    />
-                  </Field>
-                </>
+                <Field label="Company name" required error={errors.entityName}>
+                  <input
+                    id="entityName"
+                    className={inp(errors.entityName)}
+                    placeholder="e.g. ABC Construction Ltd"
+                    value={entityName}
+                    onChange={(e) => setEntityName(e.target.value)}
+                  />
+                </Field>
               ) : (
-                <>
-                  <Field
-                    label="Client initials"
-                    required
-                    error={errors.clientInitials}
-                    hint="Initials only, e.g. C.A."
-                  >
-                    <input
-                      id="clientInitials"
-                      className={inp(errors.clientInitials)}
-                      value={clientInitials}
-                      onChange={(e) => setClientInitials(e.target.value)}
-                    />
-                  </Field>
-                  <Field
-                    label="Project postcode"
-                    required
-                    error={errors.projectPostcode}
-                    hint="Only the area prefix (e.g. SW19) is ever shown publicly."
-                  >
-                    <input
-                      id="projectPostcode"
-                      className={inp(errors.projectPostcode)}
-                      value={projectPostcode}
-                      onChange={(e) => setProjectPostcode(e.target.value)}
-                    />
-                  </Field>
-                </>
+                <Field
+                  label="Client initials"
+                  required
+                  error={errors.clientInitials}
+                  hint="Initials only, e.g. C.A."
+                >
+                  <input
+                    id="clientInitials"
+                    className={inp(errors.clientInitials)}
+                    value={clientInitials}
+                    onChange={(e) => setClientInitials(e.target.value)}
+                  />
+                </Field>
               )}
+
+              <Field
+                label="Project address"
+                hint="Where the work was. Internal only — used to verify your report, never shown publicly."
+              >
+                <input
+                  className={inputClass}
+                  placeholder="Address line (optional)"
+                  value={projectAddressLine1}
+                  onChange={(e) => setProjectAddressLine1(e.target.value)}
+                />
+              </Field>
+              <Field label="City / town" required error={errors.projectCity}>
+                <input
+                  id="projectCity"
+                  className={inp(errors.projectCity)}
+                  value={projectCity}
+                  onChange={(e) => setProjectCity(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Project postcode"
+                required
+                error={errors.projectPostcode}
+                hint="Full postcode — internal only. Public shows just the area (e.g. SW19)."
+              >
+                <input
+                  id="projectPostcode"
+                  className={inp(errors.projectPostcode)}
+                  value={projectPostcode}
+                  onChange={(e) => setProjectPostcode(e.target.value)}
+                />
+              </Field>
 
               <Field label="Project type" required error={errors.projectType}>
                 <Select
