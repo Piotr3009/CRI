@@ -22,12 +22,11 @@ type TypeTile = {
 
 const TYPE_TILES: TypeTile[] = [
   { value: "RESIDENTIAL_CLIENT", title: "Private client", subtitle: "individual", active: true },
-  { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company", active: false },
-  { value: "DEVELOPER", title: "Developer", subtitle: "investor", active: false },
-  { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "main contractor", active: false },
-  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "architect / PM", active: false },
-  { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "does not pay", active: false },
-  { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "does not pay", active: false },
+  { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: false },
+  { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: false },
+  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: false },
+  { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: false },
+  { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: false },
 ];
 
 const BEHAVIOUR_QUESTIONS: { key: BehaviourKey; label: string }[] = [
@@ -501,11 +500,11 @@ export function SubmitReportFlow() {
                 type="button"
                 onClick={() => setSelectedType(t.value)}
                 className={
-                  "rounded-xl border p-4 text-left transition " +
+                  "rounded-xl border p-4 text-left shadow-sm transition " +
                   (selected
-                    ? "border-cri-green ring-1 ring-cri-green "
-                    : "border-gray-200 hover:border-gray-300 ") +
-                  (t.active ? "" : "opacity-70")
+                    ? "border-cri-green bg-white ring-1 ring-cri-green "
+                    : "border-gray-200 bg-gray-50 hover:border-gray-300 hover:bg-gray-100 ") +
+                  (t.active ? "" : "opacity-80")
                 }
               >
                 <div className="flex items-center">
