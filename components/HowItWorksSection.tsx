@@ -13,7 +13,7 @@ const STEPS = [
   },
   {
     n: 3,
-    title: "CRI moderates the report",
+    title: "CTX moderates the report",
     text: "Each report is reviewed before publication — nothing goes live automatically.",
   },
   {

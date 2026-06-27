@@ -11,10 +11,10 @@ export function Footer() {
               <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-cri-green text-white">
                 <ShieldIcon className="h-4 w-4" />
               </span>
-              <span className="text-base font-bold text-cri-charcoal">CRI</span>
+              <span className="text-base font-bold text-cri-charcoal">CTX</span>
             </div>
             <p className="mt-3 max-w-sm text-sm leading-relaxed text-cri-steel">
-              Construction Risk Intelligence. Evidence-backed client, payment and
+              Construction Trust Exchange. Evidence-backed client, payment and
               project risk reports for UK contractors. Know the risk before you
               price the job.
             </p>
@@ -74,12 +74,12 @@ export function Footer() {
 
         <div className="mt-10 border-t border-cri-border pt-6">
           <p className="text-xs leading-relaxed text-cri-steel">
-            CRI reports indicate contractor-submitted risk patterns and moderated
-            experiences. CRI does not make legal findings of wrongdoing and is not
+            CTX reports indicate contractor-submitted risk patterns and moderated
+            experiences. CTX does not make legal findings of wrongdoing and is not
             a blacklist. This platform does not provide legal advice.
           </p>
           <p className="mt-3 text-xs text-cri-steel">
-            © {new Date().getFullYear()} CRI — Construction Risk Intelligence.
+            © {new Date().getFullYear()} CTX — Construction Trust Exchange.
             Demo / MVP build.
           </p>
         </div>

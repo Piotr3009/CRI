@@ -192,7 +192,7 @@ export const submitReportSchema = z
       "Please confirm you can provide evidence if requested",
     ),
     confirmModeration: requiredCheckbox(
-      "Please acknowledge that CRI may moderate this report",
+      "Please acknowledge that CTX may moderate this report",
     ),
     confirmNotAutomatic: requiredCheckbox(
       "Please acknowledge that this report is not published automatically",

@@ -5,7 +5,7 @@ import { z } from "zod";
 import { createRiskReport } from "@/lib/reports";
 
 // ---------------------------------------------------------------------------
-// Validation — all client input is untrusted and re-validated here (Zod).
+// Shared validation pieces — all client input is untrusted (Zod re-validates).
 // ---------------------------------------------------------------------------
 
 const behaviour = z.enum(["YES", "SOMETIMES", "NO"]);
@@ -35,26 +35,24 @@ const paymentSchema = z.object({
   amountGbp: z.number().int().min(0).max(100000000).nullable().optional(),
 });
 
-const privateClientSchema = z.object({
-  // Reporter (manual for now; will be pulled from the account once auth ships).
+const reporterShape = {
   reporterCompanyName: z.string().trim().min(1).max(200),
   reporterContactName: z.string().trim().min(1).max(200),
   reporterEmail: z.string().trim().email().max(200),
   reporterPhone: z.string().trim().max(50).optional().or(z.literal("")),
   reporterTradeType: z.string().trim().min(1).max(120),
+};
 
-  // Entity — private residential client (initials only, never a full name).
-  clientInitials: z.string().trim().min(1).max(12),
+const projectShape = {
   projectPostcode: z.string().trim().min(2).max(12),
   projectType: projectTypeEnum,
   contractValueRange: z.string().trim().max(40).optional().or(z.literal("")),
   startDate: z.string().trim().optional().or(z.literal("")),
   projectStatus: projectStatusEnum,
+};
 
-  // Payments — at least 1, at most 20. daysLate = 0 means on time / early.
+const paymentsDebtsShape = {
   payments: z.array(paymentSchema).min(1).max(20),
-
-  // Abandoned invoices (> 60 days unpaid) — optional, counted separately.
   abandonedInvoicesCount: z
     .number()
     .int()
@@ -69,20 +67,20 @@ const privateClientSchema = z.object({
     .max(100000000)
     .nullable()
     .optional(),
+};
 
-  // Behaviour — all 6 required (raw TAK / CZASAMI / NIE).
+const behaviourShape = {
   behaviourExtraWorkNoCost: behaviour,
   behaviourAskedCostUpfront: behaviour,
   behaviourExpectedFreeLogistics: behaviour,
   behaviourKeptAgreements: behaviour,
   behaviourCommunicationSmooth: behaviour,
   behaviourWouldRecommend: behaviour,
+};
 
-  // Narrative (optional, private) + evidence types claimed.
+const tailShape = {
   issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
   evidenceTypes: z.array(z.string().trim().max(40)).max(10),
-
-  // Consents — every one must be ticked (true).
   consents: z.object({
     realExperience: z.literal(true),
     canProvide: z.literal(true),
@@ -90,6 +88,32 @@ const privateClientSchema = z.object({
     notAutoPublished: z.literal(true),
     notRevenge: z.literal(true),
   }),
+};
+
+const commonShape = {
+  ...reporterShape,
+  ...projectShape,
+  ...paymentsDebtsShape,
+  ...behaviourShape,
+  ...tailShape,
+};
+
+const commonSchema = z.object(commonShape);
+type CommonInput = z.infer<typeof commonSchema>;
+
+// Private client → initials only (osoba fizyczna, RODO).
+const privateClientSchema = z.object({
+  ...commonShape,
+  clientInitials: z.string().trim().min(1).max(12),
+});
+
+// Commercial client → a company (public). Full name + address allowed.
+const commercialClientSchema = z.object({
+  ...commonShape,
+  entityName: z.string().trim().min(1).max(200),
+  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+  projectCity: z.string().trim().min(1).max(120),
+  courtDispute: z.enum(["YES", "NO"]),
 });
 
 export type SubmitState = { ok: boolean; formError?: string };
@@ -131,8 +155,78 @@ function outwardCode(postcode: string): string {
   return pc.length > 3 ? pc.slice(0, pc.length - 3) : pc; // UK inward is 3 chars
 }
 
+/**
+ * Compute the Level-1 fields shared by every "paying" report type
+ * (private client, commercial client, …). Entity-specific fields and
+ * visibility are added by each caller.
+ */
+function commonComputed(d: CommonInput) {
+  const avgDelay =
+    d.payments.reduce((sum, p) => sum + p.daysLate, 0) / d.payments.length;
+
+  const parsedStart = d.startDate ? new Date(d.startDate) : null;
+  const startDate =
+    parsedStart && !Number.isNaN(parsedStart.getTime()) ? parsedStart : null;
+
+  const extras: "YES" | "NO" | "NOT_SURE" =
+    d.behaviourExtraWorkNoCost === "YES"
+      ? "YES"
+      : d.behaviourExtraWorkNoCost === "NO"
+        ? "NO"
+        : "NOT_SURE";
+
+  return {
+    // Reporter (private)
+    reporterCompanyName: d.reporterCompanyName,
+    reporterContactName: d.reporterContactName,
+    reporterEmail: d.reporterEmail,
+    reporterPhone: d.reporterPhone || null,
+    reporterTradeType: d.reporterTradeType,
+
+    // Project
+    projectType: d.projectType,
+    contractValueRange: d.contractValueRange || null,
+    startDate,
+    projectStatus: d.projectStatus,
+
+    // Risk scoring (computed from raw facts)
+    paymentScore: scoreFromDelay(avgDelay),
+    communicationScore: commScoreFromAnswer(d.behaviourCommunicationSmooth),
+    variationRisk: variationRiskFromAnswer(d.behaviourExtraWorkNoCost),
+    disputeRisk: (d.abandonedInvoicesCount ?? 0) > 0 ? ("HIGH" as const) : ("LOW" as const),
+    avgPaymentDelayDays: Math.round(avgDelay * 10) / 10,
+    extrasRequestedWithoutApprovedCost: extras,
+
+    // Abandoned invoices (> 60 days)
+    abandonedInvoicesCount: d.abandonedInvoicesCount ?? null,
+    abandonedInvoicesTotalGbp: d.abandonedInvoicesTotalGbp ?? null,
+
+    // Behaviour (raw answers)
+    behaviourExtraWorkNoCost: d.behaviourExtraWorkNoCost,
+    behaviourAskedCostUpfront: d.behaviourAskedCostUpfront,
+    behaviourExpectedFreeLogistics: d.behaviourExpectedFreeLogistics,
+    behaviourKeptAgreements: d.behaviourKeptAgreements,
+    behaviourCommunicationSmooth: d.behaviourCommunicationSmooth,
+    behaviourWouldRecommend: d.behaviourWouldRecommend,
+
+    // Narrative + evidence + consents
+    issueDescription: (d.issueDescription || "").trim(),
+    evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
+    consentsAcceptedAt: new Date(),
+
+    // Payment child rows
+    payments: {
+      create: d.payments.map((p, i) => ({
+        position: i + 1,
+        daysLate: p.daysLate,
+        amountGbp: p.amountGbp ?? null,
+      })),
+    },
+  };
+}
+
 // ---------------------------------------------------------------------------
-// Action
+// Actions
 // ---------------------------------------------------------------------------
 
 export async function submitPrivateClientReport(
@@ -147,85 +241,17 @@ export async function submitPrivateClientReport(
   }
   const d = parsed.data;
 
-  // Derive Level-1 values from the raw facts the reporter gave us.
-  const avgDelay =
-    d.payments.reduce((sum, p) => sum + p.daysLate, 0) / d.payments.length;
-  const paymentScore = scoreFromDelay(avgDelay);
-  const communicationScore = commScoreFromAnswer(d.behaviourCommunicationSmooth);
-  const variationRisk = variationRiskFromAnswer(d.behaviourExtraWorkNoCost);
-  const disputeRisk = (d.abandonedInvoicesCount ?? 0) > 0 ? "HIGH" : "LOW";
-  const publicArea = outwardCode(d.projectPostcode);
-
-  const parsedStart = d.startDate ? new Date(d.startDate) : null;
-  const startDate =
-    parsedStart && !Number.isNaN(parsedStart.getTime()) ? parsedStart : null;
-
-  const extras =
-    d.behaviourExtraWorkNoCost === "YES"
-      ? "YES"
-      : d.behaviourExtraWorkNoCost === "NO"
-        ? "NO"
-        : "NOT_SURE";
-
   try {
     await createRiskReport({
-      // Reporter (private)
-      reporterCompanyName: d.reporterCompanyName,
-      reporterContactName: d.reporterContactName,
-      reporterEmail: d.reporterEmail,
-      reporterPhone: d.reporterPhone || null,
-      reporterTradeType: d.reporterTradeType,
-
-      // Entity — private residential client
+      ...commonComputed(d),
       entityType: "RESIDENTIAL_CLIENT",
       entityName: null,
       clientInitials: d.clientInitials,
       isResidential: true,
       projectPostcode: d.projectPostcode,
-      publicArea,
-
-      // Project
-      projectType: d.projectType,
-      contractValueRange: d.contractValueRange || null,
-      startDate,
-      projectStatus: d.projectStatus,
-
-      // Risk scoring (computed from raw facts)
-      paymentScore,
-      communicationScore,
-      variationRisk,
-      disputeRisk,
-      avgPaymentDelayDays: Math.round(avgDelay * 10) / 10,
-      extrasRequestedWithoutApprovedCost: extras,
-
-      // Abandoned invoices (> 60 days)
-      abandonedInvoicesCount: d.abandonedInvoicesCount ?? null,
-      abandonedInvoicesTotalGbp: d.abandonedInvoicesTotalGbp ?? null,
-
-      // Behaviour (raw answers)
-      behaviourExtraWorkNoCost: d.behaviourExtraWorkNoCost,
-      behaviourAskedCostUpfront: d.behaviourAskedCostUpfront,
-      behaviourExpectedFreeLogistics: d.behaviourExpectedFreeLogistics,
-      behaviourKeptAgreements: d.behaviourKeptAgreements,
-      behaviourCommunicationSmooth: d.behaviourCommunicationSmooth,
-      behaviourWouldRecommend: d.behaviourWouldRecommend,
-
-      // Narrative + evidence + consents
-      issueDescription: (d.issueDescription || "").trim(),
-      evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
-      consentsAcceptedAt: new Date(),
-
-      // Governance — residential defaults to restricted; moderation gates all.
+      publicArea: outwardCode(d.projectPostcode),
+      // Residential defaults to restricted; moderation gates publication.
       visibility: "VERIFIED_CONTRACTORS_ONLY",
-
-      // Payment child rows
-      payments: {
-        create: d.payments.map((p, i) => ({
-          position: i + 1,
-          daysLate: p.daysLate,
-          amountGbp: p.amountGbp ?? null,
-        })),
-      },
     });
   } catch (error) {
     console.error("Failed to create private client report", error);
@@ -235,6 +261,45 @@ export async function submitPrivateClientReport(
     };
   }
 
-  // redirect throws a control-flow signal by design — keep it outside try/catch.
+  redirect("/submit-report/success");
+}
+
+export async function submitCommercialClientReport(
+  input: unknown,
+): Promise<SubmitState> {
+  const parsed = commercialClientSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      formError: "Please complete all required fields correctly.",
+    };
+  }
+  const d = parsed.data;
+
+  try {
+    await createRiskReport({
+      ...commonComputed(d),
+      entityType: "COMMERCIAL_CLIENT",
+      entityName: d.entityName,
+      clientInitials: null,
+      isResidential: false,
+      projectAddressLine1: d.projectAddressLine1 || null,
+      projectCity: d.projectCity,
+      projectPostcode: d.projectPostcode,
+      // Company address is public — show the full postcode.
+      publicArea: d.projectPostcode.trim().toUpperCase(),
+      // Court dispute reuses the existing formalDispute field (YES / NO).
+      formalDispute: d.courtDispute,
+      // Companies are public; moderation still gates publication.
+      visibility: "PUBLIC",
+    });
+  } catch (error) {
+    console.error("Failed to create commercial client report", error);
+    return {
+      ok: false,
+      formError: "Something went wrong saving your report. Please try again.",
+    };
+  }
+
   redirect("/submit-report/success");
 }

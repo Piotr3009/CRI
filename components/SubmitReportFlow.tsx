@@ -1,7 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { submitPrivateClientReport } from "@/app/submit-report/actions";
+import {
+  submitPrivateClientReport,
+  submitCommercialClientReport,
+} from "@/app/submit-report/actions";
 import {
   PROJECT_TYPE_LABELS,
   PROJECT_STATUS_LABELS,
@@ -22,7 +25,7 @@ type TypeTile = {
 
 const TYPE_TILES: TypeTile[] = [
   { value: "RESIDENTIAL_CLIENT", title: "Private client", subtitle: "individual", active: true },
-  { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: false },
+  { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: true },
   { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: false },
   { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: false },
   { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: false },
@@ -48,10 +51,15 @@ const EVIDENCE_OPTIONS: { value: string; label: string }[] = [
 
 const CONSENT_ITEMS: { key: keyof Consents; label: string }[] = [
   { key: "realExperience", label: "I confirm this is based on my own real, first-hand experience." },
-  { key: "canProvide", label: "I can provide evidence on request from CRI." },
-  { key: "allowModeration", label: "I understand CRI may moderate, anonymise, restrict or reject this report." },
+  { key: "canProvide", label: "I can provide evidence on request from CTX." },
+  { key: "allowModeration", label: "I understand CTX may moderate, anonymise, restrict or reject this report." },
   { key: "notAutoPublished", label: "I understand this report is not published automatically." },
   { key: "notRevenge", label: "I confirm this is a fair account, not malicious or revenge." },
+];
+
+const YES_NO_OPTIONS = [
+  { value: "YES", label: "Yes" },
+  { value: "NO", label: "No" },
 ];
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
@@ -229,13 +237,19 @@ export function SubmitReportFlow() {
   const [reporterPhone, setReporterPhone] = useState("");
   const [reporterTradeType, setReporterTradeType] = useState("");
 
-  // Entity / project
+  // Entity (private = initials; commercial = company name + full address)
   const [clientInitials, setClientInitials] = useState("");
+  const [entityName, setEntityName] = useState("");
+  const [projectAddressLine1, setProjectAddressLine1] = useState("");
+  const [projectCity, setProjectCity] = useState("");
   const [projectPostcode, setProjectPostcode] = useState("");
   const [projectType, setProjectType] = useState("");
   const [contractValueRange, setContractValueRange] = useState("");
   const [startDate, setStartDate] = useState("");
   const [projectStatus, setProjectStatus] = useState("");
+
+  // Commercial-only: court dispute
+  const [courtDispute, setCourtDispute] = useState("");
 
   // Payments
   const [payRows, setPayRows] = useState<PayRow[]>([{ daysLate: "", amountGbp: "" }]);
@@ -269,6 +283,10 @@ export function SubmitReportFlow() {
   const [submitting, setSubmitting] = useState(false);
   const [showErrors, setShowErrors] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+
+  const isPrivate = selectedType === "RESIDENTIAL_CLIENT";
+  const isCommercial = selectedType === "COMMERCIAL_CLIENT";
+  const isPaying = isPrivate || isCommercial;
 
   // --- Payment count control -------------------------------------------------
   function setPaymentCount(nRaw: number) {
@@ -308,8 +326,17 @@ export function SubmitReportFlow() {
       e.reporterEmail = "Enter a valid email";
     if (!reporterTradeType.trim()) e.reporterTradeType = "Required";
 
-    if (!clientInitials.trim()) e.clientInitials = "Required";
-    if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
+    if (isCommercial) {
+      if (!entityName.trim()) e.entityName = "Required";
+      if (!projectCity.trim()) e.projectCity = "Required";
+      if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
+      if (courtDispute !== "YES" && courtDispute !== "NO")
+        e.courtDispute = "Please answer";
+    } else {
+      if (!clientInitials.trim()) e.clientInitials = "Required";
+      if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
+    }
+
     if (!projectType) e.projectType = "Select a project type";
     if (!projectStatus) e.projectStatus = "Select a status";
 
@@ -348,10 +375,13 @@ export function SubmitReportFlow() {
     "reporterContactName",
     "reporterEmail",
     "reporterTradeType",
+    "entityName",
     "clientInitials",
+    "projectCity",
     "projectPostcode",
     "projectType",
     "projectStatus",
+    "courtDispute",
     ...payRows.map((_, i) => `pay_${i}`),
     "abandonedCount",
     ...BEHAVIOUR_QUESTIONS.map((q) => `beh_${q.key}`),
@@ -378,14 +408,13 @@ export function SubmitReportFlow() {
 
     setSubmitting(true);
 
-    const payload = {
+    const shared = {
       reporterCompanyName: reporterCompanyName.trim(),
       reporterContactName: reporterContactName.trim(),
       reporterEmail: reporterEmail.trim(),
       reporterPhone: reporterPhone.trim(),
       reporterTradeType: reporterTradeType.trim(),
 
-      clientInitials: clientInitials.trim(),
       projectPostcode: projectPostcode.trim(),
       projectType,
       contractValueRange,
@@ -415,7 +444,21 @@ export function SubmitReportFlow() {
     };
 
     try {
-      const res = await submitPrivateClientReport(payload);
+      let res;
+      if (isCommercial) {
+        res = await submitCommercialClientReport({
+          ...shared,
+          entityName: entityName.trim(),
+          projectAddressLine1: projectAddressLine1.trim(),
+          projectCity: projectCity.trim(),
+          courtDispute,
+        });
+      } else {
+        res = await submitPrivateClientReport({
+          ...shared,
+          clientInitials: clientInitials.trim(),
+        });
+      }
       // On success the action redirects; only an error returns a result here.
       if (res && !res.ok) {
         setFormError(res.formError ?? "Something went wrong. Please try again.");
@@ -426,8 +469,6 @@ export function SubmitReportFlow() {
       setSubmitting(false);
     }
   }
-
-  const isPrivate = selectedType === "RESIDENTIAL_CLIENT";
 
   // --- Render ----------------------------------------------------------------
   return (
@@ -530,47 +571,98 @@ export function SubmitReportFlow() {
       </Section>
 
       {/* Coming soon notice for non-active types */}
-      {selectedType && !isPrivate && (
+      {selectedType && !isPaying && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-cri-steel">
           This survey type is coming soon. Right now you can submit a{" "}
-          <strong className="text-cri-charcoal">Private client</strong> report.
+          <strong className="text-cri-charcoal">Private client</strong> or{" "}
+          <strong className="text-cri-charcoal">Commercial client</strong>{" "}
+          report.
         </div>
       )}
 
-      {/* Step 3 — Private client survey */}
-      {isPrivate && (
+      {/* Step 3 — survey (private or commercial) */}
+      {isPaying && (
         <>
           <Section
             title="Who you are reporting"
-            description="Private clients are recorded by initials only — never a full name."
+            description={
+              isCommercial
+                ? "Companies are public (Companies House) — full name and address may be shown."
+                : "Private clients are recorded by initials only — never a full name."
+            }
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Client initials"
-                required
-                error={errors.clientInitials}
-                hint="Initials only, e.g. C.A."
-              >
-                <input
-                  id="clientInitials"
-                  className={inp(errors.clientInitials)}
-                  value={clientInitials}
-                  onChange={(e) => setClientInitials(e.target.value)}
-                />
-              </Field>
-              <Field
-                label="Project postcode"
-                required
-                error={errors.projectPostcode}
-                hint="Only the area prefix (e.g. SW19) is ever shown publicly."
-              >
-                <input
-                  id="projectPostcode"
-                  className={inp(errors.projectPostcode)}
-                  value={projectPostcode}
-                  onChange={(e) => setProjectPostcode(e.target.value)}
-                />
-              </Field>
+              {isCommercial ? (
+                <>
+                  <Field label="Company name" required error={errors.entityName}>
+                    <input
+                      id="entityName"
+                      className={inp(errors.entityName)}
+                      placeholder="e.g. ABC Construction Ltd"
+                      value={entityName}
+                      onChange={(e) => setEntityName(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="Address line">
+                    <input
+                      className={inputClass}
+                      value={projectAddressLine1}
+                      onChange={(e) => setProjectAddressLine1(e.target.value)}
+                    />
+                  </Field>
+                  <Field label="City / town" required error={errors.projectCity}>
+                    <input
+                      id="projectCity"
+                      className={inp(errors.projectCity)}
+                      value={projectCity}
+                      onChange={(e) => setProjectCity(e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    label="Postcode"
+                    required
+                    error={errors.projectPostcode}
+                    hint="Full postcode — company address is public."
+                  >
+                    <input
+                      id="projectPostcode"
+                      className={inp(errors.projectPostcode)}
+                      value={projectPostcode}
+                      onChange={(e) => setProjectPostcode(e.target.value)}
+                    />
+                  </Field>
+                </>
+              ) : (
+                <>
+                  <Field
+                    label="Client initials"
+                    required
+                    error={errors.clientInitials}
+                    hint="Initials only, e.g. C.A."
+                  >
+                    <input
+                      id="clientInitials"
+                      className={inp(errors.clientInitials)}
+                      value={clientInitials}
+                      onChange={(e) => setClientInitials(e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    label="Project postcode"
+                    required
+                    error={errors.projectPostcode}
+                    hint="Only the area prefix (e.g. SW19) is ever shown publicly."
+                  >
+                    <input
+                      id="projectPostcode"
+                      className={inp(errors.projectPostcode)}
+                      value={projectPostcode}
+                      onChange={(e) => setProjectPostcode(e.target.value)}
+                    />
+                  </Field>
+                </>
+              )}
+
               <Field label="Project type" required error={errors.projectType}>
                 <Select
                   id="projectType"
@@ -605,6 +697,25 @@ export function SubmitReportFlow() {
                 />
               </Field>
             </div>
+
+            {isCommercial && (
+              <div id="courtDispute">
+                <Field
+                  label="Did the dispute end up in court?"
+                  required
+                  error={errors.courtDispute}
+                  hint="The final report shows only the number of court disputes — no details."
+                >
+                  <Select
+                    value={courtDispute}
+                    onChange={setCourtDispute}
+                    options={YES_NO_OPTIONS}
+                    placeholder="Select…"
+                    error={errors.courtDispute}
+                  />
+                </Field>
+              </div>
+            )}
           </Section>
 
           <Section
@@ -779,7 +890,7 @@ export function SubmitReportFlow() {
                   </p>
                   <p className="text-xs text-cri-steel">
                     Secure file upload is coming soon. For now, tick what you
-                    hold above — CRI may request it.
+                    hold above — CTX may request it.
                   </p>
                 </div>
                 <button

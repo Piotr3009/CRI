@@ -19,16 +19,16 @@ export function LegalDisclaimer({
       <p className="text-xs leading-relaxed text-cri-steel">
         {variant === "compact" ? (
           <>
-            CRI reports are based on contractor-submitted experiences and
+            CTX reports are based on contractor-submitted experiences and
             moderated evidence. Reports indicate risk patterns, not legal
             findings.
           </>
         ) : (
           <>
-            CRI reports indicate contractor-submitted risk patterns and moderated
-            experiences. CRI does not make legal findings of wrongdoing. Scores
+            CTX reports indicate contractor-submitted risk patterns and moderated
+            experiences. CTX does not make legal findings of wrongdoing. Scores
             and risk levels reflect a contractor&rsquo;s reported experience and
-            CRI&rsquo;s moderation, and may be subject to a right to reply,
+            CTX&rsquo;s moderation, and may be subject to a right to reply,
             correction or removal. This information is provided to help assess
             risk and is not legal advice.
           </>

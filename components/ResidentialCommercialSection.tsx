@@ -29,7 +29,7 @@ export function ResidentialCommercialSection() {
             Residential vs Commercial
           </h2>
           <p className="mt-3 text-cri-steel">
-            Different entities carry different privacy obligations. CRI treats
+            Different entities carry different privacy obligations. CTX treats
             residential records with stronger restrictions.
           </p>
         </div>
