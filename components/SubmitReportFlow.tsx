@@ -55,6 +55,8 @@ const CONSENT_ITEMS: { key: keyof Consents; label: string }[] = [
   { key: "notRevenge", label: "I confirm this is a fair account, not malicious or revenge." },
 ];
 
+const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
@@ -79,12 +81,28 @@ type Consents = {
 
 type PayRow = { daysLate: string; amountGbp: string };
 
+type Errors = Record<string, string>;
+
 const inputClass =
   "w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-cri-charcoal focus:border-cri-green focus:outline-none focus:ring-1 focus:ring-cri-green";
+
+function inp(hasError?: string) {
+  return (
+    inputClass +
+    (hasError
+      ? " border-red-400 focus:border-red-400 focus:ring-red-400"
+      : "")
+  );
+}
 
 // ---------------------------------------------------------------------------
 // Small presentational helpers
 // ---------------------------------------------------------------------------
+
+function Err({ msg }: { msg?: string }) {
+  if (!msg) return null;
+  return <p className="mt-1 text-xs font-medium text-red-600">{msg}</p>;
+}
 
 function Section({
   title,
@@ -108,11 +126,13 @@ function Field({
   label,
   hint,
   required,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
   required?: boolean;
+  error?: string;
   children: React.ReactNode;
 }) {
   return (
@@ -122,27 +142,36 @@ function Field({
         {required && <span className="text-red-600"> *</span>}
       </span>
       <div className="mt-1">{children}</div>
-      {hint && <p className="mt-1 text-xs text-cri-steel">{hint}</p>}
+      {error ? (
+        <Err msg={error} />
+      ) : hint ? (
+        <p className="mt-1 text-xs text-cri-steel">{hint}</p>
+      ) : null}
     </div>
   );
 }
 
 function Select({
+  id,
   value,
   onChange,
   options,
   placeholder,
+  error,
 }: {
+  id?: string;
   value: string;
   onChange: (v: string) => void;
   options: { value: string; label: string }[];
   placeholder?: string;
+  error?: string;
 }) {
   return (
     <select
+      id={id}
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className={inputClass}
+      className={inp(error)}
     >
       <option value="">{placeholder ?? "Select…"}</option>
       {options.map((o) => (
@@ -239,7 +268,8 @@ export function SubmitReportFlow() {
   });
 
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [showErrors, setShowErrors] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
 
   // --- Payment count control -------------------------------------------------
   function setPaymentCount(nRaw: number) {
@@ -253,7 +283,9 @@ export function SubmitReportFlow() {
   }
 
   function updatePayRow(i: number, patch: Partial<PayRow>) {
-    setPayRows((prev) => prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
+    setPayRows((prev) =>
+      prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
+    );
   }
 
   function toggleEvidence(v: string) {
@@ -266,46 +298,85 @@ export function SubmitReportFlow() {
     setConsents((prev) => ({ ...prev, [k]: !prev[k] }));
   }
 
-  // --- Validation ------------------------------------------------------------
-  const emailOk = /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(reporterEmail.trim());
-  const reporterOk =
-    reporterCompanyName.trim() !== "" &&
-    reporterContactName.trim() !== "" &&
-    emailOk &&
-    reporterTradeType.trim() !== "";
-  const entityOk =
-    clientInitials.trim() !== "" &&
-    projectPostcode.trim().length >= 2 &&
-    projectType !== "" &&
-    projectStatus !== "";
-  const paymentsOk =
-    payRows.length >= 1 &&
-    payRows.every((r) => {
-      const n = Number(r.daysLate);
-      return r.daysLate.trim() !== "" && Number.isInteger(n) && n >= 0;
-    });
-  const behaviourOk = BEHAVIOUR_QUESTIONS.every((q) => behaviour[q.key] !== "");
-  const debtsOk =
-    !hasDebts || (abandonedCount.trim() !== "" && Number(abandonedCount) >= 0);
-  const consentsOk = Object.values(consents).every(Boolean);
+  // --- Validation: build an errors map keyed by field id ---------------------
+  function validate(): Errors {
+    const e: Errors = {};
 
-  const canSubmit =
-    !submitting &&
-    selectedType === "RESIDENTIAL_CLIENT" &&
-    reporterOk &&
-    entityOk &&
-    paymentsOk &&
-    behaviourOk &&
-    debtsOk &&
-    consentsOk;
+    if (!reporterCompanyName.trim()) e.reporterCompanyName = "Required";
+    if (!reporterContactName.trim()) e.reporterContactName = "Required";
+    if (!reporterEmail.trim()) e.reporterEmail = "Required";
+    else if (!EMAIL_RE.test(reporterEmail.trim()))
+      e.reporterEmail = "Enter a valid email";
+    if (!reporterTradeType.trim()) e.reporterTradeType = "Required";
+
+    if (!clientInitials.trim()) e.clientInitials = "Required";
+    if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
+    if (!projectType) e.projectType = "Select a project type";
+    if (!projectStatus) e.projectStatus = "Select a status";
+
+    payRows.forEach((r, i) => {
+      const n = Number(r.daysLate);
+      if (r.daysLate.trim() === "" || !Number.isInteger(n) || n < 0) {
+        e[`pay_${i}`] = "Enter days (0 = on time)";
+      }
+    });
+
+    if (hasDebts) {
+      const n = Number(abandonedCount);
+      if (abandonedCount.trim() === "" || !Number.isInteger(n) || n < 0) {
+        e.abandonedCount = "Enter a number";
+      }
+    }
+
+    BEHAVIOUR_QUESTIONS.forEach((q) => {
+      if (behaviour[q.key] === "") e[`beh_${q.key}`] = "Please answer";
+    });
+
+    CONSENT_ITEMS.forEach((c) => {
+      if (!consents[c.key]) e[`con_${c.key}`] = "Required";
+    });
+
+    return e;
+  }
+
+  const allErrors = validate();
+  const errors: Errors = showErrors ? allErrors : {};
+  const hasNoErrors = Object.keys(allErrors).length === 0;
+
+  // Ordered ids for "scroll to first problem".
+  const errorOrder: string[] = [
+    "reporterCompanyName",
+    "reporterContactName",
+    "reporterEmail",
+    "reporterTradeType",
+    "clientInitials",
+    "projectPostcode",
+    "projectType",
+    "projectStatus",
+    ...payRows.map((_, i) => `pay_${i}`),
+    "abandonedCount",
+    ...BEHAVIOUR_QUESTIONS.map((q) => `beh_${q.key}`),
+    ...CONSENT_ITEMS.map((c) => `con_${c.key}`),
+  ];
 
   // --- Submit ----------------------------------------------------------------
   async function handleSubmit() {
-    setError(null);
-    if (!canSubmit) {
-      setError("Please complete all required fields correctly.");
+    setFormError(null);
+    const errs = validate();
+
+    if (Object.keys(errs).length > 0) {
+      setShowErrors(true);
+      const firstKey = errorOrder.find((k) => errs[k]);
+      if (firstKey) {
+        setTimeout(() => {
+          document
+            .getElementById(firstKey)
+            ?.scrollIntoView({ behavior: "smooth", block: "center" });
+        }, 0);
+      }
       return;
     }
+
     setSubmitting(true);
 
     const payload = {
@@ -348,11 +419,11 @@ export function SubmitReportFlow() {
       const res = await submitPrivateClientReport(payload);
       // On success the action redirects; only an error returns a result here.
       if (res && !res.ok) {
-        setError(res.formError ?? "Something went wrong. Please try again.");
+        setFormError(res.formError ?? "Something went wrong. Please try again.");
         setSubmitting(false);
       }
     } catch {
-      setError("Something went wrong. Please try again.");
+      setFormError("Something went wrong. Please try again.");
       setSubmitting(false);
     }
   }
@@ -368,24 +439,27 @@ export function SubmitReportFlow() {
         description="Temporary — these will come from your verified account once sign-in is live. Private, never shown publicly."
       >
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Your company name" required>
+          <Field label="Your company name" required error={errors.reporterCompanyName}>
             <input
-              className={inputClass}
+              id="reporterCompanyName"
+              className={inp(errors.reporterCompanyName)}
               value={reporterCompanyName}
               onChange={(e) => setReporterCompanyName(e.target.value)}
             />
           </Field>
-          <Field label="Contact name" required>
+          <Field label="Contact name" required error={errors.reporterContactName}>
             <input
-              className={inputClass}
+              id="reporterContactName"
+              className={inp(errors.reporterContactName)}
               value={reporterContactName}
               onChange={(e) => setReporterContactName(e.target.value)}
             />
           </Field>
-          <Field label="Email" required>
+          <Field label="Email" required error={errors.reporterEmail}>
             <input
+              id="reporterEmail"
               type="email"
-              className={inputClass}
+              className={inp(errors.reporterEmail)}
               value={reporterEmail}
               onChange={(e) => setReporterEmail(e.target.value)}
             />
@@ -397,9 +471,15 @@ export function SubmitReportFlow() {
               onChange={(e) => setReporterPhone(e.target.value)}
             />
           </Field>
-          <Field label="Trade type" required hint="e.g. Electrical, Joinery">
+          <Field
+            label="Trade type"
+            required
+            error={errors.reporterTradeType}
+            hint="e.g. Electrical, Joinery"
+          >
             <input
-              className={inputClass}
+              id="reporterTradeType"
+              className={inp(errors.reporterTradeType)}
               value={reporterTradeType}
               onChange={(e) => setReporterTradeType(e.target.value)}
             />
@@ -466,9 +546,15 @@ export function SubmitReportFlow() {
             description="Private clients are recorded by initials only — never a full name."
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Client initials" required hint="Initials only, e.g. C.A.">
+              <Field
+                label="Client initials"
+                required
+                error={errors.clientInitials}
+                hint="Initials only, e.g. C.A."
+              >
                 <input
-                  className={inputClass}
+                  id="clientInitials"
+                  className={inp(errors.clientInitials)}
                   value={clientInitials}
                   onChange={(e) => setClientInitials(e.target.value)}
                 />
@@ -476,19 +562,23 @@ export function SubmitReportFlow() {
               <Field
                 label="Project postcode"
                 required
+                error={errors.projectPostcode}
                 hint="Only the area prefix (e.g. SW19) is ever shown publicly."
               >
                 <input
-                  className={inputClass}
+                  id="projectPostcode"
+                  className={inp(errors.projectPostcode)}
                   value={projectPostcode}
                   onChange={(e) => setProjectPostcode(e.target.value)}
                 />
               </Field>
-              <Field label="Project type" required>
+              <Field label="Project type" required error={errors.projectType}>
                 <Select
+                  id="projectType"
                   value={projectType}
                   onChange={setProjectType}
                   options={optionsFromLabels(PROJECT_TYPE_LABELS)}
+                  error={errors.projectType}
                 />
               </Field>
               <Field label="Contract value">
@@ -506,11 +596,13 @@ export function SubmitReportFlow() {
                   onChange={(e) => setStartDate(e.target.value)}
                 />
               </Field>
-              <Field label="Status" required>
+              <Field label="Status" required error={errors.projectStatus}>
                 <Select
+                  id="projectStatus"
                   value={projectStatus}
                   onChange={setProjectStatus}
                   options={optionsFromLabels(PROJECT_STATUS_LABELS)}
+                  error={errors.projectStatus}
                 />
               </Field>
             </div>
@@ -534,31 +626,35 @@ export function SubmitReportFlow() {
               />
             </Field>
 
-            <div className="space-y-2">
+            <div className="space-y-3">
               {payRows.map((r, i) => (
-                <div
-                  key={i}
-                  className="grid grid-cols-1 gap-2 sm:grid-cols-[auto,1fr,1fr] sm:items-center"
-                >
-                  <span className="text-sm font-medium text-cri-charcoal sm:w-24">
-                    Payment {i + 1}
-                  </span>
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="Days late (0 = on time)"
-                    className={inputClass}
-                    value={r.daysLate}
-                    onChange={(e) => updatePayRow(i, { daysLate: e.target.value })}
-                  />
-                  <input
-                    type="number"
-                    min={0}
-                    placeholder="Amount £ (optional)"
-                    className={inputClass}
-                    value={r.amountGbp}
-                    onChange={(e) => updatePayRow(i, { amountGbp: e.target.value })}
-                  />
+                <div id={`pay_${i}`} key={i}>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto,1fr,1fr] sm:items-center">
+                    <span className="text-sm font-medium text-cri-charcoal sm:w-24">
+                      Payment {i + 1}
+                    </span>
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="Days late (0 = on time)"
+                      className={inp(errors[`pay_${i}`])}
+                      value={r.daysLate}
+                      onChange={(e) =>
+                        updatePayRow(i, { daysLate: e.target.value })
+                      }
+                    />
+                    <input
+                      type="number"
+                      min={0}
+                      placeholder="Amount £ (optional)"
+                      className={inputClass}
+                      value={r.amountGbp}
+                      onChange={(e) =>
+                        updatePayRow(i, { amountGbp: e.target.value })
+                      }
+                    />
+                  </div>
+                  <Err msg={errors[`pay_${i}`]} />
                 </div>
               ))}
             </div>
@@ -583,11 +679,16 @@ export function SubmitReportFlow() {
 
             {hasDebts && (
               <div className="grid gap-4 sm:grid-cols-2">
-                <Field label="How many abandoned invoices?" required>
+                <Field
+                  label="How many abandoned invoices?"
+                  required
+                  error={errors.abandonedCount}
+                >
                   <input
+                    id="abandonedCount"
                     type="number"
                     min={0}
-                    className={inputClass}
+                    className={inp(errors.abandonedCount)}
                     value={abandonedCount}
                     onChange={(e) => setAbandonedCount(e.target.value)}
                   />
@@ -612,18 +713,22 @@ export function SubmitReportFlow() {
             <div className="space-y-4">
               {BEHAVIOUR_QUESTIONS.map((q) => (
                 <div
+                  id={`beh_${q.key}`}
                   key={q.key}
-                  className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between"
+                  className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
                 >
                   <span className="text-sm text-cri-charcoal sm:max-w-md">
                     {q.label}
                   </span>
-                  <TriState
-                    value={behaviour[q.key]}
-                    onChange={(v) =>
-                      setBehaviour((prev) => ({ ...prev, [q.key]: v }))
-                    }
-                  />
+                  <div className="shrink-0">
+                    <TriState
+                      value={behaviour[q.key]}
+                      onChange={(v) =>
+                        setBehaviour((prev) => ({ ...prev, [q.key]: v }))
+                      }
+                    />
+                    <Err msg={errors[`beh_${q.key}`]} />
+                  </div>
                 </div>
               ))}
             </div>
@@ -633,7 +738,10 @@ export function SubmitReportFlow() {
             title="Description & evidence"
             description="Optional. Held privately for moderation — never published as written."
           >
-            <Field label="Describe the situation" hint="Max 1000 characters. Facts, first-hand.">
+            <Field
+              label="Describe the situation"
+              hint="Max 1000 characters. Facts, first-hand."
+            >
               <textarea
                 className={inputClass + " min-h-[120px]"}
                 maxLength={1000}
@@ -662,43 +770,66 @@ export function SubmitReportFlow() {
                 ))}
               </div>
             </div>
+
+            {/* Upload placeholder — secure file storage is a future module */}
+            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <p className="text-sm font-medium text-cri-charcoal">
+                    Upload supporting documents
+                  </p>
+                  <p className="text-xs text-cri-steel">
+                    Secure file upload is coming soon. For now, tick what you
+                    hold above — CRI may request it.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled
+                  className="cursor-not-allowed rounded-lg border border-gray-300 px-3 py-2 text-sm text-cri-steel"
+                >
+                  Coming soon
+                </button>
+              </div>
+            </div>
           </Section>
 
           <Section title="Confirmations" description="All required.">
             <div className="space-y-3">
               {CONSENT_ITEMS.map((c) => (
-                <label
-                  key={c.key}
-                  className="flex items-start gap-2 text-sm text-cri-charcoal"
-                >
-                  <input
-                    type="checkbox"
-                    className="mt-1"
-                    checked={consents[c.key]}
-                    onChange={() => toggleConsent(c.key)}
-                  />
-                  <span>{c.label}</span>
-                </label>
+                <div id={`con_${c.key}`} key={c.key}>
+                  <label className="flex items-start gap-2 text-sm text-cri-charcoal">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={consents[c.key]}
+                      onChange={() => toggleConsent(c.key)}
+                    />
+                    <span>{c.label}</span>
+                  </label>
+                  <Err msg={errors[`con_${c.key}`]} />
+                </div>
               ))}
             </div>
           </Section>
 
-          {error && (
+          {showErrors && !hasNoErrors && (
             <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-              {error}
+              Please fix the highlighted fields above, then submit again.
+            </p>
+          )}
+
+          {formError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
             </p>
           )}
 
           <button
             type="button"
             onClick={handleSubmit}
-            disabled={!canSubmit}
-            className={
-              "w-full rounded-lg px-4 py-3 text-sm font-semibold text-white transition " +
-              (canSubmit
-                ? "bg-cri-green hover:opacity-90"
-                : "cursor-not-allowed bg-gray-300")
-            }
+            disabled={submitting}
+            className="w-full rounded-lg bg-cri-green px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
           >
             {submitting ? "Submitting…" : "Submit report for moderation"}
           </button>
