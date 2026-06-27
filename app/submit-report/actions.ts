@@ -32,7 +32,7 @@ const projectStatusEnum = z.enum([
 
 const paymentSchema = z.object({
   daysLate: z.number().int().min(0).max(3650),
-  amountGbp: z.number().int().min(0).max(100000000).nullable().optional(),
+  amountGbp: z.number().int().min(0).max(100000000),
 });
 
 const reporterShape = {
@@ -46,7 +46,8 @@ const reporterShape = {
 const projectShape = {
   projectPostcode: z.string().trim().min(2).max(12),
   projectType: projectTypeEnum,
-  contractValueRange: z.string().trim().max(40).optional().or(z.literal("")),
+  contractValueGbp: z.number().int().min(0).max(1000000000),
+  contractLength: z.string().trim().min(1).max(40),
   startDate: z.string().trim().optional().or(z.literal("")),
   projectStatus: projectStatusEnum,
 };
@@ -89,6 +90,7 @@ const tailShape = {
     allowModeration: z.literal(true),
     notAutoPublished: z.literal(true),
     notRevenge: z.literal(true),
+    allPaymentsDeclared: z.literal(true),
   }),
 };
 
@@ -187,7 +189,8 @@ function commonComputed(d: CommonInput) {
 
     // Project
     projectType: d.projectType,
-    contractValueRange: d.contractValueRange || null,
+    contractValueGbp: d.contractValueGbp,
+    contractLength: d.contractLength,
     startDate,
     projectStatus: d.projectStatus,
 
@@ -223,7 +226,7 @@ function commonComputed(d: CommonInput) {
       create: d.payments.map((p, i) => ({
         position: i + 1,
         daysLate: p.daysLate,
-        amountGbp: p.amountGbp ?? null,
+        amountGbp: p.amountGbp,
       })),
     },
   };

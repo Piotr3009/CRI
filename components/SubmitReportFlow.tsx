@@ -8,7 +8,6 @@ import {
 import {
   PROJECT_TYPE_LABELS,
   PROJECT_STATUS_LABELS,
-  CONTRACT_VALUE_RANGES,
   optionsFromLabels,
 } from "@/lib/constants";
 
@@ -57,6 +56,15 @@ const CONSENT_ITEMS: { key: keyof Consents; label: string }[] = [
   { key: "allowModeration", label: "I understand CTX may moderate, anonymise, restrict or reject this report." },
   { key: "notAutoPublished", label: "I understand this report is not published automatically." },
   { key: "notRevenge", label: "I confirm this is a fair account, not malicious or revenge." },
+  { key: "allPaymentsDeclared", label: "I confirm these are ALL payments under this contract — not only the late ones." },
+];
+
+const CONTRACT_LENGTH_OPTIONS = [
+  { value: "UNDER_1_WEEK", label: "Under 1 week" },
+  { value: "1_4_WEEKS", label: "1–4 weeks" },
+  { value: "1_3_MONTHS", label: "1–3 months" },
+  { value: "3_6_MONTHS", label: "3–6 months" },
+  { value: "OVER_6_MONTHS", label: "Over 6 months" },
 ];
 
 const YES_NO_OPTIONS = [
@@ -88,6 +96,7 @@ type Consents = {
   allowModeration: boolean;
   notAutoPublished: boolean;
   notRevenge: boolean;
+  allPaymentsDeclared: boolean;
 };
 
 type PayRow = { daysLate: string; amountGbp: string };
@@ -248,7 +257,8 @@ export function SubmitReportFlow() {
   const [projectCity, setProjectCity] = useState("");
   const [projectPostcode, setProjectPostcode] = useState("");
   const [projectType, setProjectType] = useState("");
-  const [contractValueRange, setContractValueRange] = useState("");
+  const [contractValueGbp, setContractValueGbp] = useState("");
+  const [contractLength, setContractLength] = useState("");
   const [startDate, setStartDate] = useState("");
   const [projectStatus, setProjectStatus] = useState("");
 
@@ -284,6 +294,7 @@ export function SubmitReportFlow() {
     allowModeration: false,
     notAutoPublished: false,
     notRevenge: false,
+    allPaymentsDeclared: false,
   });
 
   const [submitting, setSubmitting] = useState(false);
@@ -346,10 +357,21 @@ export function SubmitReportFlow() {
     if (!projectType) e.projectType = "Select a project type";
     if (!projectStatus) e.projectStatus = "Select a status";
 
+    const cv = Number(contractValueGbp);
+    if (contractValueGbp.trim() === "" || !Number.isInteger(cv) || cv <= 0) {
+      e.contractValueGbp = "Enter the approximate value";
+    }
+    if (!contractLength) e.contractLength = "Select a length";
+
     payRows.forEach((r, i) => {
       const n = Number(r.daysLate);
-      if (r.daysLate.trim() === "" || !Number.isInteger(n) || n < 0) {
-        e[`pay_${i}`] = "Enter days (0 = on time)";
+      const amt = Number(r.amountGbp);
+      const badDays =
+        r.daysLate.trim() === "" || !Number.isInteger(n) || n < 0;
+      const badAmt =
+        r.amountGbp.trim() === "" || !Number.isInteger(amt) || amt < 0;
+      if (badDays || badAmt) {
+        e[`pay_${i}`] = "Enter days (0 = on time) and amount £";
       }
     });
 
@@ -375,6 +397,19 @@ export function SubmitReportFlow() {
   const errors: Errors = showErrors ? allErrors : {};
   const hasNoErrors = Object.keys(allErrors).length === 0;
 
+  // Soft, non-blocking sanity warnings about the payments listed.
+  const paymentsTotal = payRows.reduce(
+    (s, r) => s + (Number(r.amountGbp) || 0),
+    0,
+  );
+  const contractVal = Number(contractValueGbp) || 0;
+  const totalBelowValue =
+    contractVal > 0 && paymentsTotal > 0 && paymentsTotal < contractVal * 0.5;
+  const longButSingle =
+    ["1_3_MONTHS", "3_6_MONTHS", "OVER_6_MONTHS"].includes(contractLength) &&
+    payRows.length === 1;
+  const showPaymentWarning = totalBelowValue || longButSingle;
+
   // Ordered ids for "scroll to first problem".
   const errorOrder: string[] = [
     "reporterCompanyName",
@@ -387,6 +422,8 @@ export function SubmitReportFlow() {
     "projectPostcode",
     "projectType",
     "projectStatus",
+    "contractValueGbp",
+    "contractLength",
     "courtDispute",
     ...payRows.map((_, i) => `pay_${i}`),
     "abandonedCount",
@@ -423,13 +460,14 @@ export function SubmitReportFlow() {
 
       projectPostcode: projectPostcode.trim(),
       projectType,
-      contractValueRange,
+      contractValueGbp: Number(contractValueGbp),
+      contractLength,
       startDate,
       projectStatus,
 
       payments: payRows.map((r) => ({
         daysLate: Number(r.daysLate),
-        amountGbp: r.amountGbp.trim() === "" ? null : Number(r.amountGbp),
+        amountGbp: Number(r.amountGbp),
       })),
 
       abandonedInvoicesCount:
@@ -680,11 +718,33 @@ export function SubmitReportFlow() {
                   error={errors.projectType}
                 />
               </Field>
-              <Field label="Contract value">
+              <Field
+                label="Approximate contract value (£)"
+                required
+                error={errors.contractValueGbp}
+                hint="Roughly — e.g. 120000. Used to sanity-check payments. Never shown publicly."
+              >
+                <input
+                  id="contractValueGbp"
+                  type="number"
+                  min={0}
+                  className={inp(errors.contractValueGbp)}
+                  placeholder="e.g. 120000"
+                  value={contractValueGbp}
+                  onChange={(e) => setContractValueGbp(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Contract length"
+                required
+                error={errors.contractLength}
+              >
                 <Select
-                  value={contractValueRange}
-                  onChange={setContractValueRange}
-                  options={CONTRACT_VALUE_RANGES}
+                  id="contractLength"
+                  value={contractLength}
+                  onChange={setContractLength}
+                  options={CONTRACT_LENGTH_OPTIONS}
+                  error={errors.contractLength}
                 />
               </Field>
               <Field label="Start date">
@@ -728,11 +788,11 @@ export function SubmitReportFlow() {
 
           <Section
             title="Payments"
-            description="Enter how many payments there were, then the days late for each. On time or early = 0. We calculate the average and score — you don't."
+            description="Enter ALL payments — including on-time ones (0 days). Listing only the late ones is unfair and your report may be rejected. We calculate the average and score — you don't."
           >
             <Field
               label="How many payments?"
-              hint="Max 20. Enter approved payments only."
+              hint="Max 20. Include every approved payment, on-time and late."
             >
               <input
                 type="number"
@@ -764,8 +824,8 @@ export function SubmitReportFlow() {
                     <input
                       type="number"
                       min={0}
-                      placeholder="Amount £ (optional)"
-                      className={inputClass}
+                      placeholder="Amount £"
+                      className={inp(errors[`pay_${i}`])}
                       value={r.amountGbp}
                       onChange={(e) =>
                         updatePayRow(i, { amountGbp: e.target.value })
@@ -776,6 +836,14 @@ export function SubmitReportFlow() {
                 </div>
               ))}
             </div>
+
+            {showPaymentWarning && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+                {totalBelowValue
+                  ? "Your payments add up to well below the contract value. Did you list all of them, including on-time ones? If money is still outstanding, use the retention or abandoned-invoice sections."
+                  : "A longer contract with a single payment looks unusual. Please make sure you've listed every payment, not just the late ones."}
+              </div>
+            )}
 
             <p className="text-xs text-cri-steel">
               You may be asked to provide proof of payment on request.

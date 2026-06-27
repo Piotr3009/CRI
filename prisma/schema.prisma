@@ -167,7 +167,9 @@ model RiskReport {
 
   // --- Project details ---
   projectType        ProjectType
-  contractValueRange String? // e.g. "UNDER_5K", "100K_PLUS"
+  contractValueRange String? // e.g. "UNDER_5K", "100K_PLUS" (legacy, unused)
+  contractValueGbp   Int?    // przybliżona wartość kontraktu £
+  contractLength     String? // długość kontraktu: UNDER_1_WEEK ... OVER_6_MONTHS
   startDate          DateTime?
   projectStatus      ProjectStatus @default(COMPLETED)
 
