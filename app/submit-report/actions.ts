@@ -51,6 +51,7 @@ const projectShape = {
   contractValueGbp: z.number().int().min(0).max(1000000000),
   contractLength: z.string().trim().min(1).max(40),
   startDate: z.string().trim().optional().or(z.literal("")),
+  finishDate: z.string().trim().optional().or(z.literal("")),
   projectStatus: projectStatusEnum,
 };
 
@@ -96,9 +97,20 @@ const tailShape = {
   }),
 };
 
+// Optional UK company registration number (CRN) of the reported company.
+// Never collected for residential clients (individuals have none). Optional
+// everywhere until the Companies House autocomplete lands and can validate it.
+const companiesHouseNumberField = z
+  .string()
+  .trim()
+  .max(20)
+  .optional()
+  .or(z.literal(""));
+
 const commonShape = {
   ...reporterShape,
   ...projectShape,
+  companiesHouseNumber: companiesHouseNumberField,
   ...paymentsDebtsShape,
   ...behaviourShape,
   ...tailShape,
@@ -194,6 +206,10 @@ function commonComputed(d: CommonInput) {
   const startDate =
     parsedStart && !Number.isNaN(parsedStart.getTime()) ? parsedStart : null;
 
+  const parsedFinish = d.finishDate ? new Date(d.finishDate) : null;
+  const finishDate =
+    parsedFinish && !Number.isNaN(parsedFinish.getTime()) ? parsedFinish : null;
+
   const extras: "YES" | "NO" | "NOT_SURE" =
     d.behaviourExtraWorkNoCost === "YES"
       ? "YES"
@@ -209,6 +225,9 @@ function commonComputed(d: CommonInput) {
     reporterPhone: d.reporterPhone || null,
     reporterTradeType: d.reporterTradeType,
 
+    // Reported company CRN — optional; null for residential or when left blank.
+    companiesHouseNumber: d.companiesHouseNumber?.trim() || null,
+
     // Project — address is INTERNAL (never shown publicly; privacy.ts
     // only ever exposes publicArea, which is the outward code / region).
     projectAddressLine1: d.projectAddressLine1 || null,
@@ -219,6 +238,7 @@ function commonComputed(d: CommonInput) {
     contractValueGbp: d.contractValueGbp,
     contractLength: d.contractLength,
     startDate,
+    finishDate,
     projectStatus: d.projectStatus,
 
     // Risk scoring (computed from raw facts)
@@ -385,12 +405,12 @@ const pmScoresRequired = {
   pmTenderDistribScore: score1to10,
   pmDtmProfessionalScore: score1to10,
   pmImpartialScore: score1to10,
-  pmCoordinationScore: score1to10,
   pmDecisionsScore: score1to10,
   pmFragmentationScore: score1to10,
   pmCommunicationScore: score1to10,
   pmRealisticScore: score1to10,
   pmDtmFairnessScore: score1to10,
+  pmWouldRecommendScore: score1to10,
 };
 
 const pmScoreKeys = Object.keys(pmScoresRequired) as (keyof typeof pmScoresRequired)[];
@@ -400,12 +420,12 @@ const pmScoresOptional = {
   pmTenderDistribScore: score1to10.nullable().optional(),
   pmDtmProfessionalScore: score1to10.nullable().optional(),
   pmImpartialScore: score1to10.nullable().optional(),
-  pmCoordinationScore: score1to10.nullable().optional(),
   pmDecisionsScore: score1to10.nullable().optional(),
   pmFragmentationScore: score1to10.nullable().optional(),
   pmCommunicationScore: score1to10.nullable().optional(),
   pmRealisticScore: score1to10.nullable().optional(),
   pmDtmFairnessScore: score1to10.nullable().optional(),
+  pmWouldRecommendScore: score1to10.nullable().optional(),
 };
 
 const arScoresRequired = {
@@ -468,6 +488,7 @@ const projectManagerSchema = z
   .object({
     ...reporterShape,
     entityName: z.string().trim().min(1).max(200),
+    companiesHouseNumber: companiesHouseNumberField,
     spReporterRole: z.string().trim().min(1).max(120),
     projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
     projectCity: z.string().trim().min(1).max(120),
@@ -513,12 +534,12 @@ export async function submitProjectManagerReport(
     d.pmTenderDistribScore,
     d.pmDtmProfessionalScore,
     d.pmImpartialScore,
-    d.pmCoordinationScore,
     d.pmDecisionsScore,
     d.pmFragmentationScore,
     d.pmCommunicationScore,
     d.pmRealisticScore,
     d.pmDtmFairnessScore,
+    d.pmWouldRecommendScore,
   ];
   const overall = Math.round(scores.reduce((s, n) => s + n, 0) / scores.length);
 
@@ -532,6 +553,7 @@ export async function submitProjectManagerReport(
 
       entityType: "PROJECT_MANAGER",
       entityName: d.entityName,
+      companiesHouseNumber: d.companiesHouseNumber?.trim() || null,
       clientInitials: null,
       isResidential: false,
 
@@ -557,12 +579,12 @@ export async function submitProjectManagerReport(
       pmTenderDistribScore: d.pmTenderDistribScore,
       pmDtmProfessionalScore: d.pmDtmProfessionalScore,
       pmImpartialScore: d.pmImpartialScore,
-      pmCoordinationScore: d.pmCoordinationScore,
       pmDecisionsScore: d.pmDecisionsScore,
       pmFragmentationScore: d.pmFragmentationScore,
       pmCommunicationScore: d.pmCommunicationScore,
       pmRealisticScore: d.pmRealisticScore,
       pmDtmFairnessScore: d.pmDtmFairnessScore,
+      pmWouldRecommendScore: d.pmWouldRecommendScore,
 
       // QS block — only when this PM also acted as the QS.
       alsoActedAsQs: d.alsoActedAsQs,
@@ -598,6 +620,7 @@ function qsColumns(d: Record<string, unknown>): Record<string, number | null> {
 const quantitySurveyorSchema = z.object({
   ...reporterShape,
   entityName: z.string().trim().min(1).max(200),
+  companiesHouseNumber: companiesHouseNumberField,
   spReporterRole: z.string().trim().min(1).max(120),
   projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
   projectCity: z.string().trim().min(1).max(120),
@@ -635,6 +658,7 @@ export async function submitQuantitySurveyorReport(
 
       entityType: "QUANTITY_SURVEYOR",
       entityName: d.entityName,
+      companiesHouseNumber: d.companiesHouseNumber?.trim() || null,
       clientInitials: null,
       isResidential: false,
 
@@ -700,6 +724,7 @@ const architectPmSchema = z
   .object({
     ...reporterShape,
     entityName: z.string().trim().min(1).max(200),
+    companiesHouseNumber: companiesHouseNumberField,
     spReporterRole: z.string().trim().min(1).max(120),
     projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
     projectCity: z.string().trim().min(1).max(120),
@@ -759,6 +784,7 @@ export async function submitArchitectPmReport(
 
       entityType: "ARCHITECT_PM",
       entityName: d.entityName,
+      companiesHouseNumber: d.companiesHouseNumber?.trim() || null,
       clientInitials: null,
       isResidential: false,
 

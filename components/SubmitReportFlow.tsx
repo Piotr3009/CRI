@@ -30,9 +30,9 @@ const TYPE_TILES: TypeTile[] = [
   { value: "RESIDENTIAL_CLIENT", title: "Private client", subtitle: "individual", active: true },
   { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: true },
   { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: true },
-  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: true },
   { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: true },
   { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: true },
+  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: true },
 ];
 
 const BEHAVIOUR_QUESTIONS: { key: BehaviourKey; label: string }[] = [
@@ -64,11 +64,12 @@ const CONSENT_ITEMS: { key: keyof Consents; label: string }[] = [
 ];
 
 const CONTRACT_LENGTH_OPTIONS = [
-  { value: "UNDER_1_WEEK", label: "Under 1 week" },
-  { value: "1_4_WEEKS", label: "1–4 weeks" },
+  { value: "UNDER_1_MONTH", label: "Under 1 month" },
   { value: "1_3_MONTHS", label: "1–3 months" },
   { value: "3_6_MONTHS", label: "3–6 months" },
-  { value: "OVER_6_MONTHS", label: "Over 6 months" },
+  { value: "6_12_MONTHS", label: "6–12 months" },
+  { value: "1_2_YEARS", label: "1–2 years" },
+  { value: "OVER_2_YEARS", label: "Over 2 years" },
 ];
 
 const YES_NO_OPTIONS = [
@@ -86,12 +87,12 @@ const PM_QUESTIONS: { key: PmKey; label: string }[] = [
   { key: "pmTenderDistribScore", label: "Did the PM ensure all tender documents reached every bidder fairly and on time?" },
   { key: "pmDtmProfessionalScore", label: "How professionally were design team meetings (DTMs) run?" },
   { key: "pmImpartialScore", label: "Was the PM fair and impartial, rather than always siding with the client?" },
-  { key: "pmCoordinationScore", label: "Did on-site coordination run according to plan?" },
   { key: "pmDecisionsScore", label: "Did the PM make and communicate decisions on time, without blocking delays?" },
   { key: "pmFragmentationScore", label: "Did the PM break work into sensible packages, rather than fragmenting it in a way that caused you losses?" },
   { key: "pmCommunicationScore", label: "Was communication clear, specific and responsive?" },
   { key: "pmRealisticScore", label: "Were the PM's instructions and expectations realistic and achievable?" },
   { key: "pmDtmFairnessScore", label: "On DTMs, did the PM fairly assign responsibility and hold everyone (not just the contractor) accountable?" },
+  { key: "pmWouldRecommendScore", label: "Would you work with this PM again?" },
 ];
 
 const QS_QUESTIONS: { key: QsKey; label: string }[] = [
@@ -155,12 +156,12 @@ type PmKey =
   | "pmTenderDistribScore"
   | "pmDtmProfessionalScore"
   | "pmImpartialScore"
-  | "pmCoordinationScore"
   | "pmDecisionsScore"
   | "pmFragmentationScore"
   | "pmCommunicationScore"
   | "pmRealisticScore"
-  | "pmDtmFairnessScore";
+  | "pmDtmFairnessScore"
+  | "pmWouldRecommendScore";
 
 type QsKey =
   | "qsFairTenderScore"
@@ -403,6 +404,7 @@ export function SubmitReportFlow() {
   // Entity (private = initials; commercial = company name + full address)
   const [clientInitials, setClientInitials] = useState("");
   const [entityName, setEntityName] = useState("");
+  const [companiesHouseNumber, setCompaniesHouseNumber] = useState("");
   const [projectAddressLine1, setProjectAddressLine1] = useState("");
   const [projectCity, setProjectCity] = useState("");
   const [projectPostcode, setProjectPostcode] = useState("");
@@ -410,6 +412,7 @@ export function SubmitReportFlow() {
   const [contractValueGbp, setContractValueGbp] = useState("");
   const [contractLength, setContractLength] = useState("");
   const [startDate, setStartDate] = useState("");
+  const [finishDate, setFinishDate] = useState("");
   const [projectStatus, setProjectStatus] = useState("");
 
   // Commercial-only: court dispute
@@ -430,12 +433,12 @@ export function SubmitReportFlow() {
     pmTenderDistribScore: "",
     pmDtmProfessionalScore: "",
     pmImpartialScore: "",
-    pmCoordinationScore: "",
     pmDecisionsScore: "",
     pmFragmentationScore: "",
     pmCommunicationScore: "",
     pmRealisticScore: "",
     pmDtmFairnessScore: "",
+    pmWouldRecommendScore: "",
   });
 
   // QS scores (used by the QS tile, and by PM when "also acted as QS")
@@ -669,8 +672,9 @@ export function SubmitReportFlow() {
   const totalBelowValue =
     contractVal > 0 && paymentsTotal > 0 && paymentsTotal < contractVal * 0.5;
   const longButSingle =
-    ["1_3_MONTHS", "3_6_MONTHS", "OVER_6_MONTHS"].includes(contractLength) &&
-    payRows.length === 1;
+    ["1_3_MONTHS", "3_6_MONTHS", "6_12_MONTHS", "1_2_YEARS", "OVER_2_YEARS"].includes(
+      contractLength,
+    ) && payRows.length === 1;
   const showPaymentWarning = totalBelowValue || longButSingle;
 
   // Ordered ids for "scroll to first problem".
@@ -729,6 +733,8 @@ export function SubmitReportFlow() {
       reporterPhone: reporterPhone.trim(),
       reporterTradeType: reporterTradeType.trim(),
 
+      companiesHouseNumber: companiesHouseNumber.trim(),
+
       projectAddressLine1: projectAddressLine1.trim(),
       projectCity: projectCity.trim(),
       projectPostcode: projectPostcode.trim(),
@@ -736,6 +742,7 @@ export function SubmitReportFlow() {
       contractValueGbp: Number(contractValueGbp),
       contractLength,
       startDate,
+      finishDate,
       projectStatus,
 
       payments: payRows.map((r) => ({
@@ -788,6 +795,7 @@ export function SubmitReportFlow() {
         reporterTradeType: reporterTradeType.trim(),
         entityName: entityName.trim(),
         spReporterRole: spReporterRole.trim(),
+        companiesHouseNumber: companiesHouseNumber.trim(),
         projectAddressLine1: projectAddressLine1.trim(),
         projectCity: projectCity.trim(),
         projectPostcode: projectPostcode.trim(),
@@ -808,12 +816,12 @@ export function SubmitReportFlow() {
         pmTenderDistribScore: Number(pmScores.pmTenderDistribScore),
         pmDtmProfessionalScore: Number(pmScores.pmDtmProfessionalScore),
         pmImpartialScore: Number(pmScores.pmImpartialScore),
-        pmCoordinationScore: Number(pmScores.pmCoordinationScore),
         pmDecisionsScore: Number(pmScores.pmDecisionsScore),
         pmFragmentationScore: Number(pmScores.pmFragmentationScore),
         pmCommunicationScore: Number(pmScores.pmCommunicationScore),
         pmRealisticScore: Number(pmScores.pmRealisticScore),
         pmDtmFairnessScore: Number(pmScores.pmDtmFairnessScore),
+        pmWouldRecommendScore: Number(pmScores.pmWouldRecommendScore),
       };
       const arNums = {
         arDrawingsAccurateScore: Number(arScores.arDrawingsAccurateScore),
@@ -1002,21 +1010,34 @@ export function SubmitReportFlow() {
             title="Who you are reporting"
             description={
               isCompany
-                ? "Public reports show the company name and the project area only (e.g. SW19) — never the full project address."
+                ? "The company you are reporting on. The company name is public; the full project address stays internal."
                 : "Private clients are shown by initials and area only — never a full name or full address."
             }
           >
             <div className="grid gap-4 sm:grid-cols-2">
               {isCompany ? (
-                <Field label="Company name" required error={errors.entityName}>
-                  <input
-                    id="entityName"
-                    className={inp(errors.entityName)}
-                    placeholder="e.g. ABC Construction Ltd"
-                    value={entityName}
-                    onChange={(e) => setEntityName(e.target.value)}
-                  />
-                </Field>
+                <>
+                  <Field label="Company name" required error={errors.entityName}>
+                    <input
+                      id="entityName"
+                      className={inp(errors.entityName)}
+                      placeholder="e.g. ABC Construction Ltd"
+                      value={entityName}
+                      onChange={(e) => setEntityName(e.target.value)}
+                    />
+                  </Field>
+                  <Field
+                    label="Companies House number"
+                    hint="Optional — the company's UK registration number (e.g. 01234567). Links reports to the right company."
+                  >
+                    <input
+                      className={inputClass}
+                      placeholder="e.g. 01234567"
+                      value={companiesHouseNumber}
+                      onChange={(e) => setCompaniesHouseNumber(e.target.value)}
+                    />
+                  </Field>
+                </>
               ) : (
                 <Field
                   label="Client initials"
@@ -1032,7 +1053,14 @@ export function SubmitReportFlow() {
                   />
                 </Field>
               )}
+            </div>
+          </Section>
 
+          <Section
+            title="Project details"
+            description="Project location and contract details. The address is internal only — public reports show just the area (e.g. SW19)."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 label="Project address"
                 hint="Where the work was. Internal only — used to verify your report, never shown publicly."
@@ -1110,6 +1138,17 @@ export function SubmitReportFlow() {
                   className={inputClass}
                   value={startDate}
                   onChange={(e) => setStartDate(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Finish date"
+                hint="Optional — actual completion date. Leave blank if still ongoing."
+              >
+                <input
+                  type="date"
+                  className={inputClass}
+                  value={finishDate}
+                  onChange={(e) => setFinishDate(e.target.value)}
                 />
               </Field>
               <Field label="Status" required error={errors.projectStatus}>
@@ -1497,7 +1536,7 @@ export function SubmitReportFlow() {
         <>
           <Section
             title="Who you are reporting"
-            description="Public reports show the practice / company name and the project area only (e.g. SW19)."
+            description="The practice / company you are reporting on. The name is public; only the project area (e.g. SW19) is shown — never the full address."
           >
             <div className="grid gap-4 sm:grid-cols-2">
               <Field
@@ -1517,6 +1556,17 @@ export function SubmitReportFlow() {
                   }
                   value={entityName}
                   onChange={(e) => setEntityName(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Companies House number"
+                hint="Optional — the practice / company's UK registration number (e.g. 01234567). Sole traders can leave this blank."
+              >
+                <input
+                  className={inputClass}
+                  placeholder="e.g. 01234567"
+                  value={companiesHouseNumber}
+                  onChange={(e) => setCompaniesHouseNumber(e.target.value)}
                 />
               </Field>
               <Field
@@ -1545,6 +1595,14 @@ export function SubmitReportFlow() {
                   onChange={(e) => setSpReporterRole(e.target.value)}
                 />
               </Field>
+            </div>
+          </Section>
+
+          <Section
+            title="Project details"
+            description="Project location. The address is internal only — public reports show just the area (e.g. SW19)."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
               <Field
                 label="Project address"
                 hint="Where the work was. Internal only — never shown publicly."

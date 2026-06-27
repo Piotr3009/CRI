@@ -160,6 +160,7 @@ model RiskReport {
   entityType          EntityType
   entityName          String? // optional for residential clients
   clientInitials      String? // residential only, e.g. "C.A."
+  companiesHouseNumber String? // UK CRN of the reported company (not residential); optional until Companies House autocomplete lands
   isResidential       Boolean    @default(false)
   projectAddressLine1 String? // PRIVATE — never exposed publicly
   projectCity         String?
@@ -170,8 +171,9 @@ model RiskReport {
   projectType        ProjectType
   contractValueRange String? // e.g. "UNDER_5K", "100K_PLUS" (legacy, unused)
   contractValueGbp   Int?    // przybliżona wartość kontraktu £
-  contractLength     String? // długość kontraktu: UNDER_1_WEEK ... OVER_6_MONTHS
+  contractLength     String? // długość kontraktu: UNDER_1_MONTH ... OVER_2_YEARS
   startDate          DateTime?
+  finishDate         DateTime? // actual project end (optional; blank while ongoing)
   projectStatus      ProjectStatus @default(COMPLETED)
 
   // --- Risk scoring ---
@@ -220,12 +222,13 @@ model RiskReport {
   pmTenderDistribScore Int? // dokumenty przetargowe do wszystkich równo
   pmDtmProfessionalScore Int? // DTM prowadzone profesjonalnie
   pmImpartialScore     Int? // bezstronny, nie zawsze po stronie klienta
-  pmCoordinationScore  Int? // koordynacja wg planu
+  pmCoordinationScore  Int? // LEGACY — retired from the form; kept for historical PM rows
   pmDecisionsScore     Int? // decyzje na czas
   pmFragmentationScore Int? // sensowne pakiety prac (nie szkodliwe rozdrobnienie)
   pmCommunicationScore Int? // komunikacja jasna/konkretna
   pmRealisticScore     Int? // realistyczne oczekiwania/instrukcje
   pmDtmFairnessScore   Int? // sprawiedliwy podział odpowiedzialności na DTM
+  pmWouldRecommendScore Int? // would work with this PM again (1-10)
 
   // Quantity surveyor — wszystkie 1-10
   qsFairTenderScore          Int? // wszyscy ten sam spec (like-for-like)

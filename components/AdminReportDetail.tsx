@@ -278,7 +278,11 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
               : "—"}
           </Row>
           <Row label="Start date">{formatDate(report.startDate)}</Row>
+          <Row label="Finish date">{formatDate(report.finishDate)}</Row>
           <Row label="Entity name (full)">{report.entityName ?? "—"}</Row>
+          <Row label="Companies House no.">
+            {report.companiesHouseNumber ?? "—"}
+          </Row>
           <Row label="Client initials">{report.clientInitials ?? "—"}</Row>
           <Row label="Address line 1">
             {report.projectAddressLine1 ?? "—"}
