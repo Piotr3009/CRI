@@ -212,6 +212,20 @@ model RiskReport {
   retentionAmountGbp    Int?             // kwota retention £
   projectReadinessScore Int?             // gotowość projektu 1-10
 
+  // --- Service providers (PM / QS / Architect-PM; no payments) ---
+  spReporterRole       String? // rola, np. "Project Manager", "Senior QS" (funkcja, nie nazwisko)
+  // Project manager — wszystkie 1-10
+  pmScheduleScore      Int? // harmonogram przygotowany/realistyczny
+  pmTenderDistribScore Int? // dokumenty przetargowe do wszystkich równo
+  pmDtmProfessionalScore Int? // DTM prowadzone profesjonalnie
+  pmImpartialScore     Int? // bezstronny, nie zawsze po stronie klienta
+  pmCoordinationScore  Int? // koordynacja wg planu
+  pmDecisionsScore     Int? // decyzje na czas
+  pmFragmentationScore Int? // sensowne pakiety prac (nie szkodliwe rozdrobnienie)
+  pmCommunicationScore Int? // komunikacja jasna/konkretna
+  pmRealisticScore     Int? // realistyczne oczekiwania/instrukcje
+  pmDtmFairnessScore   Int? // sprawiedliwy podział odpowiedzialności na DTM
+
   // Evidence types the reporter claims to hold (checkboxes), e.g.
   // "INVOICES,SMS_EMAIL,PHOTOS,BANK_STATEMENT,OTHER". Files come later.
   evidenceTypes String?

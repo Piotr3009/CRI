@@ -5,6 +5,7 @@ import {
   submitPrivateClientReport,
   submitCommercialClientReport,
   submitMainContractorReport,
+  submitProjectManagerReport,
 } from "@/app/submit-report/actions";
 import {
   PROJECT_TYPE_LABELS,
@@ -28,7 +29,7 @@ const TYPE_TILES: TypeTile[] = [
   { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: true },
   { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: true },
   { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: false },
-  { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: false },
+  { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: true },
   { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: false },
 ];
 
@@ -73,6 +74,24 @@ const YES_NO_OPTIONS = [
   { value: "NO", label: "No" },
 ];
 
+// Service providers don't pay → no "all payments declared" consent.
+const SP_CONSENT_ITEMS = CONSENT_ITEMS.filter(
+  (c) => c.key !== "allPaymentsDeclared",
+);
+
+const PM_QUESTIONS: { key: PmKey; label: string }[] = [
+  { key: "pmScheduleScore", label: "How well-prepared and realistic was the programme / schedule?" },
+  { key: "pmTenderDistribScore", label: "Did the PM ensure all tender documents reached every bidder fairly and on time?" },
+  { key: "pmDtmProfessionalScore", label: "How professionally were design team meetings (DTMs) run?" },
+  { key: "pmImpartialScore", label: "Was the PM fair and impartial, rather than always siding with the client?" },
+  { key: "pmCoordinationScore", label: "Did on-site coordination run according to plan?" },
+  { key: "pmDecisionsScore", label: "Did the PM make and communicate decisions on time, without blocking delays?" },
+  { key: "pmFragmentationScore", label: "Did the PM break work into sensible packages, rather than fragmenting it in a way that caused you losses?" },
+  { key: "pmCommunicationScore", label: "Was communication clear, specific and responsive?" },
+  { key: "pmRealisticScore", label: "Were the PM's instructions and expectations realistic and achievable?" },
+  { key: "pmDtmFairnessScore", label: "On DTMs, did the PM fairly assign responsibility and hold everyone (not just the contractor) accountable?" },
+];
+
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // ---------------------------------------------------------------------------
@@ -99,6 +118,18 @@ type Consents = {
   notRevenge: boolean;
   allPaymentsDeclared: boolean;
 };
+
+type PmKey =
+  | "pmScheduleScore"
+  | "pmTenderDistribScore"
+  | "pmDtmProfessionalScore"
+  | "pmImpartialScore"
+  | "pmCoordinationScore"
+  | "pmDecisionsScore"
+  | "pmFragmentationScore"
+  | "pmCommunicationScore"
+  | "pmRealisticScore"
+  | "pmDtmFairnessScore";
 
 type PayRow = { daysLate: string; amountGbp: string };
 
@@ -302,6 +333,21 @@ export function SubmitReportFlow() {
   const [retentionAmount, setRetentionAmount] = useState("");
   const [projectReadiness, setProjectReadiness] = useState("");
 
+  // Service providers (PM) — role + 1-10 scores
+  const [spReporterRole, setSpReporterRole] = useState("");
+  const [pmScores, setPmScores] = useState<Record<PmKey, string>>({
+    pmScheduleScore: "",
+    pmTenderDistribScore: "",
+    pmDtmProfessionalScore: "",
+    pmImpartialScore: "",
+    pmCoordinationScore: "",
+    pmDecisionsScore: "",
+    pmFragmentationScore: "",
+    pmCommunicationScore: "",
+    pmRealisticScore: "",
+    pmDtmFairnessScore: "",
+  });
+
   // Payments
   const [payRows, setPayRows] = useState<PayRow[]>([{ daysLate: "", amountGbp: "" }]);
 
@@ -343,6 +389,7 @@ export function SubmitReportFlow() {
   const isMainContractor = selectedType === "MAIN_CONTRACTOR";
   const isCompany = isCommercial || isMainContractor;
   const isPaying = isPrivate || isCommercial || isMainContractor;
+  const isPM = selectedType === "PROJECT_MANAGER";
 
   // --- Payment count control -------------------------------------------------
   function setPaymentCount(nRaw: number) {
@@ -382,61 +429,81 @@ export function SubmitReportFlow() {
       e.reporterEmail = "Enter a valid email";
     if (!reporterTradeType.trim()) e.reporterTradeType = "Required";
 
-    if (isCompany) {
-      if (!entityName.trim()) e.entityName = "Required";
-    } else {
-      if (!clientInitials.trim()) e.clientInitials = "Required";
-    }
+    // Project location + type — needed by every survey type.
     if (!projectCity.trim()) e.projectCity = "Required";
     if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
-    if (isCompany && courtDispute !== "YES" && courtDispute !== "NO")
-      e.courtDispute = "Please answer";
-
-    if (isMainContractor) {
-      if (backCharges === "") e.backCharges = "Please answer";
-      if (variationsNoPaper === "") e.variationsNoPaper = "Please answer";
-      if (!retentionStatus) e.retentionStatus = "Please choose";
-      const r = Number(projectReadiness);
-      if (!projectReadiness || !Number.isInteger(r) || r < 1 || r > 10) {
-        e.projectReadiness = "Pick 1–10";
-      }
-    }
-
     if (!projectType) e.projectType = "Select a project type";
-    if (!projectStatus) e.projectStatus = "Select a status";
 
-    const cv = Number(contractValueGbp);
-    if (contractValueGbp.trim() === "" || !Number.isInteger(cv) || cv <= 0) {
-      e.contractValueGbp = "Enter the approximate value";
-    }
-    if (!contractLength) e.contractLength = "Select a length";
-
-    payRows.forEach((r, i) => {
-      const n = Number(r.daysLate);
-      const amt = Number(r.amountGbp);
-      const badDays =
-        r.daysLate.trim() === "" || !Number.isInteger(n) || n < 0;
-      const badAmt =
-        r.amountGbp.trim() === "" || !Number.isInteger(amt) || amt < 0;
-      if (badDays || badAmt) {
-        e[`pay_${i}`] = "Enter days (0 = on time) and amount £";
+    if (isPaying) {
+      if (isCompany) {
+        if (!entityName.trim()) e.entityName = "Required";
+      } else {
+        if (!clientInitials.trim()) e.clientInitials = "Required";
       }
-    });
+      if (isCompany && courtDispute !== "YES" && courtDispute !== "NO")
+        e.courtDispute = "Please answer";
 
-    if (hasDebts) {
-      const n = Number(abandonedCount);
-      if (abandonedCount.trim() === "" || !Number.isInteger(n) || n < 0) {
-        e.abandonedCount = "Enter a number";
+      if (isMainContractor) {
+        if (backCharges === "") e.backCharges = "Please answer";
+        if (variationsNoPaper === "") e.variationsNoPaper = "Please answer";
+        if (!retentionStatus) e.retentionStatus = "Please choose";
+        const r = Number(projectReadiness);
+        if (!projectReadiness || !Number.isInteger(r) || r < 1 || r > 10) {
+          e.projectReadiness = "Pick 1–10";
+        }
       }
+
+      if (!projectStatus) e.projectStatus = "Select a status";
+
+      const cv = Number(contractValueGbp);
+      if (contractValueGbp.trim() === "" || !Number.isInteger(cv) || cv <= 0) {
+        e.contractValueGbp = "Enter the approximate value";
+      }
+      if (!contractLength) e.contractLength = "Select a length";
+
+      payRows.forEach((r, i) => {
+        const n = Number(r.daysLate);
+        const amt = Number(r.amountGbp);
+        const badDays =
+          r.daysLate.trim() === "" || !Number.isInteger(n) || n < 0;
+        const badAmt =
+          r.amountGbp.trim() === "" || !Number.isInteger(amt) || amt < 0;
+        if (badDays || badAmt) {
+          e[`pay_${i}`] = "Enter days (0 = on time) and amount £";
+        }
+      });
+
+      if (hasDebts) {
+        const n = Number(abandonedCount);
+        if (abandonedCount.trim() === "" || !Number.isInteger(n) || n < 0) {
+          e.abandonedCount = "Enter a number";
+        }
+      }
+
+      BEHAVIOUR_QUESTIONS.forEach((q) => {
+        if (behaviour[q.key] === "") e[`beh_${q.key}`] = "Please answer";
+      });
+
+      CONSENT_ITEMS.forEach((c) => {
+        if (!consents[c.key]) e[`con_${c.key}`] = "Required";
+      });
     }
 
-    BEHAVIOUR_QUESTIONS.forEach((q) => {
-      if (behaviour[q.key] === "") e[`beh_${q.key}`] = "Please answer";
-    });
+    if (isPM) {
+      if (!entityName.trim()) e.entityName = "Required";
+      if (!spReporterRole.trim()) e.spReporterRole = "Required";
 
-    CONSENT_ITEMS.forEach((c) => {
-      if (!consents[c.key]) e[`con_${c.key}`] = "Required";
-    });
+      PM_QUESTIONS.forEach((q) => {
+        const v = Number(pmScores[q.key]);
+        if (!pmScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
+          e[q.key] = "Pick 1–10";
+        }
+      });
+
+      SP_CONSENT_ITEMS.forEach((c) => {
+        if (!consents[c.key]) e[`con_${c.key}`] = "Required";
+      });
+    }
 
     return e;
   }
@@ -465,6 +532,7 @@ export function SubmitReportFlow() {
     "reporterEmail",
     "reporterTradeType",
     "entityName",
+    "spReporterRole",
     "clientInitials",
     "projectCity",
     "projectPostcode",
@@ -477,6 +545,7 @@ export function SubmitReportFlow() {
     "variationsNoPaper",
     "retentionStatus",
     "projectReadiness",
+    ...PM_QUESTIONS.map((q) => q.key),
     ...payRows.map((_, i) => `pay_${i}`),
     "abandonedCount",
     ...BEHAVIOUR_QUESTIONS.map((q) => `beh_${q.key}`),
@@ -545,7 +614,40 @@ export function SubmitReportFlow() {
 
     try {
       let res;
-      if (isMainContractor) {
+      if (isPM) {
+        res = await submitProjectManagerReport({
+          reporterCompanyName: reporterCompanyName.trim(),
+          reporterContactName: reporterContactName.trim(),
+          reporterEmail: reporterEmail.trim(),
+          reporterPhone: reporterPhone.trim(),
+          reporterTradeType: reporterTradeType.trim(),
+          entityName: entityName.trim(),
+          spReporterRole: spReporterRole.trim(),
+          projectAddressLine1: projectAddressLine1.trim(),
+          projectCity: projectCity.trim(),
+          projectPostcode: projectPostcode.trim(),
+          projectType,
+          pmScheduleScore: Number(pmScores.pmScheduleScore),
+          pmTenderDistribScore: Number(pmScores.pmTenderDistribScore),
+          pmDtmProfessionalScore: Number(pmScores.pmDtmProfessionalScore),
+          pmImpartialScore: Number(pmScores.pmImpartialScore),
+          pmCoordinationScore: Number(pmScores.pmCoordinationScore),
+          pmDecisionsScore: Number(pmScores.pmDecisionsScore),
+          pmFragmentationScore: Number(pmScores.pmFragmentationScore),
+          pmCommunicationScore: Number(pmScores.pmCommunicationScore),
+          pmRealisticScore: Number(pmScores.pmRealisticScore),
+          pmDtmFairnessScore: Number(pmScores.pmDtmFairnessScore),
+          issueDescription: issueDescription.trim(),
+          evidenceTypes: evidence,
+          consents: {
+            realExperience: consents.realExperience,
+            canProvide: consents.canProvide,
+            allowModeration: consents.allowModeration,
+            notAutoPublished: consents.notAutoPublished,
+            notRevenge: consents.notRevenge,
+          },
+        });
+      } else if (isMainContractor) {
         res = await submitMainContractorReport({
           ...shared,
           entityName: entityName.trim(),
@@ -683,7 +785,7 @@ export function SubmitReportFlow() {
       </Section>
 
       {/* Coming soon notice for non-active types */}
-      {selectedType && !isPaying && (
+      {selectedType && !isPaying && !isPM && (
         <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-5 text-sm text-cri-steel">
           This survey type is coming soon. Right now you can submit a{" "}
           <strong className="text-cri-charcoal">Private client</strong>,{" "}
@@ -1173,6 +1275,190 @@ export function SubmitReportFlow() {
             </p>
           )}
 
+          {formError && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              {formError}
+            </p>
+          )}
+
+          <button
+            type="button"
+            onClick={handleSubmit}
+            disabled={submitting}
+            className="w-full rounded-lg bg-cri-green px-4 py-3 text-sm font-semibold text-white transition hover:opacity-90 disabled:opacity-60"
+          >
+            {submitting ? "Submitting…" : "Submit report for moderation"}
+          </button>
+        </>
+      )}
+
+      {isPM && (
+        <>
+          <Section
+            title="Who you are reporting"
+            description="Public reports show the practice / company name and the project area only (e.g. SW19)."
+          >
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field
+                label="Practice / company name"
+                required
+                error={errors.entityName}
+              >
+                <input
+                  id="entityName"
+                  className={inp(errors.entityName)}
+                  placeholder="e.g. ABC Project Management Ltd"
+                  value={entityName}
+                  onChange={(e) => setEntityName(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Their role"
+                required
+                error={errors.spReporterRole}
+                hint="Function, not a person's name — e.g. Project Manager, Senior PM."
+              >
+                <input
+                  id="spReporterRole"
+                  className={inp(errors.spReporterRole)}
+                  placeholder="e.g. Project Manager"
+                  value={spReporterRole}
+                  onChange={(e) => setSpReporterRole(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Project address"
+                hint="Where the work was. Internal only — never shown publicly."
+              >
+                <input
+                  className={inputClass}
+                  placeholder="Address line (optional)"
+                  value={projectAddressLine1}
+                  onChange={(e) => setProjectAddressLine1(e.target.value)}
+                />
+              </Field>
+              <Field label="City / town" required error={errors.projectCity}>
+                <input
+                  id="projectCity"
+                  className={inp(errors.projectCity)}
+                  value={projectCity}
+                  onChange={(e) => setProjectCity(e.target.value)}
+                />
+              </Field>
+              <Field
+                label="Project postcode"
+                required
+                error={errors.projectPostcode}
+                hint="Full postcode — internal only. Public shows just the area."
+              >
+                <input
+                  id="projectPostcode"
+                  className={inp(errors.projectPostcode)}
+                  value={projectPostcode}
+                  onChange={(e) => setProjectPostcode(e.target.value)}
+                />
+              </Field>
+              <Field label="Project type" required error={errors.projectType}>
+                <Select
+                  id="projectType"
+                  value={projectType}
+                  onChange={setProjectType}
+                  options={optionsFromLabels(PROJECT_TYPE_LABELS)}
+                  error={errors.projectType}
+                />
+              </Field>
+            </div>
+          </Section>
+
+          <Section
+            title="Project manager — performance"
+            description="Rate each from 1 (poor) to 10 (excellent). Averages and gauges are built later from many reports."
+          >
+            <div className="space-y-4">
+              {PM_QUESTIONS.map((q) => (
+                <div
+                  id={q.key}
+                  key={q.key}
+                  className="border-t border-gray-100 pt-4 first:border-0 first:pt-0"
+                >
+                  <span className="block text-sm text-cri-charcoal sm:max-w-xl">
+                    {q.label}
+                  </span>
+                  <div className="mt-2">
+                    <Scale1to10
+                      value={pmScores[q.key]}
+                      onChange={(v) =>
+                        setPmScores((prev) => ({ ...prev, [q.key]: v }))
+                      }
+                    />
+                    <Err msg={errors[q.key]} />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          <Section
+            title="Description & evidence"
+            description="Optional. Held privately for moderation — never published as written."
+          >
+            <Field
+              label="Describe the situation"
+              hint="Max 1000 characters. Facts, first-hand."
+            >
+              <textarea
+                className={inputClass + " min-h-[120px]"}
+                maxLength={1000}
+                value={issueDescription}
+                onChange={(e) => setIssueDescription(e.target.value)}
+              />
+            </Field>
+            <div>
+              <span className="block text-sm font-medium text-cri-charcoal">
+                What evidence do you hold?
+              </span>
+              <div className="mt-2 flex flex-wrap gap-3">
+                {EVIDENCE_OPTIONS.map((o) => (
+                  <label
+                    key={o.value}
+                    className="flex items-center gap-2 text-sm text-cri-charcoal"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={evidence.includes(o.value)}
+                      onChange={() => toggleEvidence(o.value)}
+                    />
+                    {o.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          </Section>
+
+          <Section title="Confirmations" description="All required.">
+            <div className="space-y-3">
+              {SP_CONSENT_ITEMS.map((c) => (
+                <div id={`con_${c.key}`} key={c.key}>
+                  <label className="flex items-start gap-2 text-sm text-cri-charcoal">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={consents[c.key]}
+                      onChange={() => toggleConsent(c.key)}
+                    />
+                    <span>{c.label}</span>
+                  </label>
+                  <Err msg={errors[`con_${c.key}`]} />
+                </div>
+              ))}
+            </div>
+          </Section>
+
+          {showErrors && !hasNoErrors && (
+            <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+              Please fix the highlighted fields above, then submit again.
+            </p>
+          )}
           {formError && (
             <p className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
               {formError}

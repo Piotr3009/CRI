@@ -370,3 +370,124 @@ export async function submitMainContractorReport(
 
   redirect("/submit-report/success");
 }
+
+// ===========================================================================
+// Service providers (PM / QS / Architect-PM) — they do NOT pay the contractor,
+// so there are no payments / debts / contract value. Quality is rated 1–10.
+// The legacy payment-centric NOT-NULL fields are filled with neutral
+// placeholders; proper service-provider display comes with the admin rebuild.
+// ===========================================================================
+
+const score1to10 = z.number().int().min(1).max(10);
+
+const serviceProviderConsents = z.object({
+  realExperience: z.literal(true),
+  canProvide: z.literal(true),
+  allowModeration: z.literal(true),
+  notAutoPublished: z.literal(true),
+  notRevenge: z.literal(true),
+});
+
+const projectManagerSchema = z.object({
+  ...reporterShape,
+  entityName: z.string().trim().min(1).max(200),
+  spReporterRole: z.string().trim().min(1).max(120),
+  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+  projectCity: z.string().trim().min(1).max(120),
+  projectPostcode: z.string().trim().min(2).max(12),
+  projectType: projectTypeEnum,
+  pmScheduleScore: score1to10,
+  pmTenderDistribScore: score1to10,
+  pmDtmProfessionalScore: score1to10,
+  pmImpartialScore: score1to10,
+  pmCoordinationScore: score1to10,
+  pmDecisionsScore: score1to10,
+  pmFragmentationScore: score1to10,
+  pmCommunicationScore: score1to10,
+  pmRealisticScore: score1to10,
+  pmDtmFairnessScore: score1to10,
+  issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
+  evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+  consents: serviceProviderConsents,
+});
+
+export async function submitProjectManagerReport(
+  input: unknown,
+): Promise<SubmitState> {
+  const parsed = projectManagerSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      formError: "Please complete all required fields correctly.",
+    };
+  }
+  const d = parsed.data;
+
+  const scores = [
+    d.pmScheduleScore,
+    d.pmTenderDistribScore,
+    d.pmDtmProfessionalScore,
+    d.pmImpartialScore,
+    d.pmCoordinationScore,
+    d.pmDecisionsScore,
+    d.pmFragmentationScore,
+    d.pmCommunicationScore,
+    d.pmRealisticScore,
+    d.pmDtmFairnessScore,
+  ];
+  const overall = Math.round(scores.reduce((s, n) => s + n, 0) / scores.length);
+
+  try {
+    await createRiskReport({
+      reporterCompanyName: d.reporterCompanyName,
+      reporterContactName: d.reporterContactName,
+      reporterEmail: d.reporterEmail,
+      reporterPhone: d.reporterPhone || null,
+      reporterTradeType: d.reporterTradeType,
+
+      entityType: "PROJECT_MANAGER",
+      entityName: d.entityName,
+      clientInitials: null,
+      isResidential: false,
+
+      projectAddressLine1: d.projectAddressLine1 || null,
+      projectCity: d.projectCity,
+      projectPostcode: d.projectPostcode,
+      publicArea: outwardCode(d.projectPostcode),
+      projectType: d.projectType,
+
+      // Legacy payment-centric fields — neutral placeholders (SP doesn't pay).
+      paymentScore: overall,
+      communicationScore: d.pmCommunicationScore,
+      variationRisk: "LOW",
+      disputeRisk: "LOW",
+
+      issueDescription: (d.issueDescription || "").trim(),
+      evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
+      consentsAcceptedAt: new Date(),
+
+      // Service-provider role + PM scores
+      spReporterRole: d.spReporterRole,
+      pmScheduleScore: d.pmScheduleScore,
+      pmTenderDistribScore: d.pmTenderDistribScore,
+      pmDtmProfessionalScore: d.pmDtmProfessionalScore,
+      pmImpartialScore: d.pmImpartialScore,
+      pmCoordinationScore: d.pmCoordinationScore,
+      pmDecisionsScore: d.pmDecisionsScore,
+      pmFragmentationScore: d.pmFragmentationScore,
+      pmCommunicationScore: d.pmCommunicationScore,
+      pmRealisticScore: d.pmRealisticScore,
+      pmDtmFairnessScore: d.pmDtmFairnessScore,
+
+      visibility: "PUBLIC",
+    });
+  } catch (error) {
+    console.error("Failed to create project manager report", error);
+    return {
+      ok: false,
+      formError: "Something went wrong saving your report. Please try again.",
+    };
+  }
+
+  redirect("/submit-report/success");
+}
