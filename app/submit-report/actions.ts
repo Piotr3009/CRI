@@ -74,6 +74,8 @@ const behaviourShape = {
   behaviourAskedCostUpfront: behaviour,
   behaviourExpectedFreeLogistics: behaviour,
   behaviourKeptAgreements: behaviour,
+  behaviourRespondedOnTime: behaviour,
+  behaviourProvidedAccess: behaviour,
   behaviourCommunicationSmooth: behaviour,
   behaviourWouldRecommend: behaviour,
 };
@@ -206,6 +208,8 @@ function commonComputed(d: CommonInput) {
     behaviourAskedCostUpfront: d.behaviourAskedCostUpfront,
     behaviourExpectedFreeLogistics: d.behaviourExpectedFreeLogistics,
     behaviourKeptAgreements: d.behaviourKeptAgreements,
+    behaviourRespondedOnTime: d.behaviourRespondedOnTime,
+    behaviourProvidedAccess: d.behaviourProvidedAccess,
     behaviourCommunicationSmooth: d.behaviourCommunicationSmooth,
     behaviourWouldRecommend: d.behaviourWouldRecommend,
 

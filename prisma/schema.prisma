@@ -197,6 +197,8 @@ model RiskReport {
   behaviourAskedCostUpfront      BehaviourAnswer? // pytał o koszt zanim zlecił? (odwrócone)
   behaviourExpectedFreeLogistics BehaviourAnswer? // oczekiwał darmowej organizacji/logistyki?
   behaviourKeptAgreements        BehaviourAnswer? // dotrzymywał ustaleń? (odwrócone)
+  behaviourRespondedOnTime       BehaviourAnswer? // odpowiadał w ustalonym czasie? (odwrócone)
+  behaviourProvidedAccess        BehaviourAnswer? // zapewnił dostęp do miejsca pracy? (odwrócone)
   behaviourCommunicationSmooth   BehaviourAnswer? // współpraca/komunikacja sprawnie? (odwrócone)
   behaviourWouldRecommend        BehaviourAnswer? // poleciłbyś innym wykonawcom? (odwrócone)
 

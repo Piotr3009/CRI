@@ -37,6 +37,8 @@ const BEHAVIOUR_QUESTIONS: { key: BehaviourKey; label: string }[] = [
   { key: "behaviourAskedCostUpfront", label: "Did the client ask about the cost before instructing work?" },
   { key: "behaviourExpectedFreeLogistics", label: "Did the client expect free organisation / logistics (samples, space for other trades, coordination)?" },
   { key: "behaviourKeptAgreements", label: "Did the client keep to what was agreed?" },
+  { key: "behaviourRespondedOnTime", label: "Did the client respond to questions and decisions within the agreed time?" },
+  { key: "behaviourProvidedAccess", label: "Did the client provide site access as agreed?" },
   { key: "behaviourCommunicationSmooth", label: "Did cooperation and communication run smoothly?" },
   { key: "behaviourWouldRecommend", label: "Would you recommend this client to other contractors?" },
 ];
@@ -75,6 +77,8 @@ type BehaviourKey =
   | "behaviourAskedCostUpfront"
   | "behaviourExpectedFreeLogistics"
   | "behaviourKeptAgreements"
+  | "behaviourRespondedOnTime"
+  | "behaviourProvidedAccess"
   | "behaviourCommunicationSmooth"
   | "behaviourWouldRecommend";
 
@@ -265,6 +269,8 @@ export function SubmitReportFlow() {
     behaviourAskedCostUpfront: "",
     behaviourExpectedFreeLogistics: "",
     behaviourKeptAgreements: "",
+    behaviourRespondedOnTime: "",
+    behaviourProvidedAccess: "",
     behaviourCommunicationSmooth: "",
     behaviourWouldRecommend: "",
   });
@@ -435,6 +441,8 @@ export function SubmitReportFlow() {
       behaviourAskedCostUpfront: behaviour.behaviourAskedCostUpfront,
       behaviourExpectedFreeLogistics: behaviour.behaviourExpectedFreeLogistics,
       behaviourKeptAgreements: behaviour.behaviourKeptAgreements,
+      behaviourRespondedOnTime: behaviour.behaviourRespondedOnTime,
+      behaviourProvidedAccess: behaviour.behaviourProvidedAccess,
       behaviourCommunicationSmooth: behaviour.behaviourCommunicationSmooth,
       behaviourWouldRecommend: behaviour.behaviourWouldRecommend,
 
