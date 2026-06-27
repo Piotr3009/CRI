@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { SubmitReportForm } from "@/components/SubmitReportForm";
+import { SubmitReportFlow } from "@/components/SubmitReportFlow";
 import { LegalDisclaimer } from "@/components/LegalDisclaimer";
 
 export const metadata: Metadata = {
@@ -30,7 +30,7 @@ export default function SubmitReportPage() {
       </div>
 
       <div className="mt-8">
-        <SubmitReportForm />
+        <SubmitReportFlow />
       </div>
     </div>
   );
