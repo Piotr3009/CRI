@@ -117,6 +117,14 @@ enum PaymentLateStatus {
   PARTIALLY
 }
 
+// Behaviour answers for the Private Client survey (Level 1 raw fact capture).
+// Aggregated into a 1–10 score only in the final report (Level 2).
+enum BehaviourAnswer {
+  YES
+  SOMETIMES
+  NO
+}
+
 // ---------------------------------------------------------------------------
 // Models
 // ---------------------------------------------------------------------------
@@ -175,6 +183,30 @@ model RiskReport {
   amountUnpaid                       Int? // whole GBP, optional
   formalDispute                      YesNoUnsure?
 
+  // --- Private Client survey: Level 1 raw fact capture (added ETAP 1) ---
+  // Payments: stored as a child list (see Payment model). avgPaymentDelayDays
+  // is the computed mean of all payment rows for this report.
+  avgPaymentDelayDays Float?
+
+  // Abandoned invoices (> 60 days unpaid) — counted SEPARATELY from delay score.
+  abandonedInvoicesCount    Int?
+  abandonedInvoicesTotalGbp Int?
+
+  // Behaviour questions (raw TAK / CZASAMI / NIE — aggregated to 1–10 in Level 2)
+  behaviourExtraWorkNoCost       BehaviourAnswer? // wymagał dodatkowych prac bez zgody na koszt?
+  behaviourAskedCostUpfront      BehaviourAnswer? // pytał o koszt zanim zlecił? (odwrócone)
+  behaviourExpectedFreeLogistics BehaviourAnswer? // oczekiwał darmowej organizacji/logistyki?
+  behaviourKeptAgreements        BehaviourAnswer? // dotrzymywał ustaleń? (odwrócone)
+  behaviourCommunicationSmooth   BehaviourAnswer? // współpraca/komunikacja sprawnie? (odwrócone)
+  behaviourWouldRecommend        BehaviourAnswer? // poleciłbyś innym wykonawcom? (odwrócone)
+
+  // Evidence types the reporter claims to hold (checkboxes), e.g.
+  // "INVOICES,SMS_EMAIL,PHOTOS,BANK_STATEMENT,OTHER". Files come later.
+  evidenceTypes String?
+
+  // When the reporter ticked all mandatory legal consents.
+  consentsAcceptedAt DateTime?
+
   // --- Narrative ---
   issueDescription String // PRIVATE detail held for moderation
   publicSummary    String? // moderated, safe-for-public summary
@@ -187,12 +219,27 @@ model RiskReport {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  evidence      Evidence[]
+  payments       Payment[]
+  evidence       Evidence[]
   rightToReplies RightToReply[]
 
   @@index([moderationStatus])
   @@index([entityType])
   @@index([publicArea])
+}
+
+// Individual payment row for a report (Private Client and other paying types).
+// daysLate = 0 means paid on time or early. amountGbp is optional.
+model Payment {
+  id           String     @id @default(cuid())
+  riskReport   RiskReport @relation(fields: [riskReportId], references: [id], onDelete: Cascade)
+  riskReportId String
+  position     Int // order in the list (1, 2, 3 …)
+  daysLate     Int // 0 = on time / early
+  amountGbp    Int? // optional, whole GBP
+  createdAt    DateTime   @default(now())
+
+  @@index([riskReportId])
 }
 
 model Evidence {
