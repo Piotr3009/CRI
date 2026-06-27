@@ -204,6 +204,14 @@ model RiskReport {
   behaviourCommunicationSmooth   BehaviourAnswer? // współpraca/komunikacja sprawnie? (odwrócone)
   behaviourWouldRecommend        BehaviourAnswer? // poleciłbyś innym wykonawcom? (odwrócone)
 
+  // --- Main contractor specifics (chain disputes; only for MAIN_CONTRACTOR) ---
+  backChargesUnagreed   BehaviourAnswer? // potrącał za nieuzgodnione usterki? (Tak/Czasami/Nie)
+  backChargesAmountGbp  Int?             // kwota potrącona £
+  variationsNoPaper     BehaviourAnswer? // ustne variations, odmowa papieru? (Tak/Czasami/Nie)
+  retentionStatus       String?          // NOT_RETURNED / RETURNED / WITHIN_TERM
+  retentionAmountGbp    Int?             // kwota retention £
+  projectReadinessScore Int?             // gotowość projektu 1-10
+
   // Evidence types the reporter claims to hold (checkboxes), e.g.
   // "INVOICES,SMS_EMAIL,PHOTOS,BANK_STATEMENT,OTHER". Files come later.
   evidenceTypes String?

@@ -4,6 +4,7 @@ import { useState } from "react";
 import {
   submitPrivateClientReport,
   submitCommercialClientReport,
+  submitMainContractorReport,
 } from "@/app/submit-report/actions";
 import {
   PROJECT_TYPE_LABELS,
@@ -25,7 +26,7 @@ type TypeTile = {
 const TYPE_TILES: TypeTile[] = [
   { value: "RESIDENTIAL_CLIENT", title: "Private client", subtitle: "individual", active: true },
   { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: true },
-  { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: false },
+  { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: true },
   { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: false },
   { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: false },
   { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: false },
@@ -236,6 +237,34 @@ function TriState({
   );
 }
 
+function Scale1to10({
+  value,
+  onChange,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {Array.from({ length: 10 }, (_, i) => String(i + 1)).map((n) => (
+        <button
+          key={n}
+          type="button"
+          onClick={() => onChange(n)}
+          className={
+            "h-9 w-9 rounded-md border text-sm font-medium transition " +
+            (value === n
+              ? "border-cri-green bg-cri-green text-white"
+              : "border-gray-300 text-cri-steel hover:bg-gray-100")
+          }
+        >
+          {n}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // Main component
 // ---------------------------------------------------------------------------
@@ -264,6 +293,14 @@ export function SubmitReportFlow() {
 
   // Commercial-only: court dispute
   const [courtDispute, setCourtDispute] = useState("");
+
+  // Main contractor — chain specifics
+  const [backCharges, setBackCharges] = useState<Tri>("");
+  const [backChargesAmount, setBackChargesAmount] = useState("");
+  const [variationsNoPaper, setVariationsNoPaper] = useState<Tri>("");
+  const [retentionStatus, setRetentionStatus] = useState("");
+  const [retentionAmount, setRetentionAmount] = useState("");
+  const [projectReadiness, setProjectReadiness] = useState("");
 
   // Payments
   const [payRows, setPayRows] = useState<PayRow[]>([{ daysLate: "", amountGbp: "" }]);
@@ -303,7 +340,9 @@ export function SubmitReportFlow() {
 
   const isPrivate = selectedType === "RESIDENTIAL_CLIENT";
   const isCommercial = selectedType === "COMMERCIAL_CLIENT";
-  const isPaying = isPrivate || isCommercial;
+  const isMainContractor = selectedType === "MAIN_CONTRACTOR";
+  const isCompany = isCommercial || isMainContractor;
+  const isPaying = isPrivate || isCommercial || isMainContractor;
 
   // --- Payment count control -------------------------------------------------
   function setPaymentCount(nRaw: number) {
@@ -343,7 +382,7 @@ export function SubmitReportFlow() {
       e.reporterEmail = "Enter a valid email";
     if (!reporterTradeType.trim()) e.reporterTradeType = "Required";
 
-    if (isCommercial) {
+    if (isCompany) {
       if (!entityName.trim()) e.entityName = "Required";
       if (!projectCity.trim()) e.projectCity = "Required";
       if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
@@ -352,6 +391,16 @@ export function SubmitReportFlow() {
     } else {
       if (!clientInitials.trim()) e.clientInitials = "Required";
       if (projectPostcode.trim().length < 2) e.projectPostcode = "Enter a postcode";
+    }
+
+    if (isMainContractor) {
+      if (backCharges === "") e.backCharges = "Please answer";
+      if (variationsNoPaper === "") e.variationsNoPaper = "Please answer";
+      if (!retentionStatus) e.retentionStatus = "Please choose";
+      const r = Number(projectReadiness);
+      if (!projectReadiness || !Number.isInteger(r) || r < 1 || r > 10) {
+        e.projectReadiness = "Pick 1–10";
+      }
     }
 
     if (!projectType) e.projectType = "Select a project type";
@@ -425,6 +474,10 @@ export function SubmitReportFlow() {
     "contractValueGbp",
     "contractLength",
     "courtDispute",
+    "backCharges",
+    "variationsNoPaper",
+    "retentionStatus",
+    "projectReadiness",
     ...payRows.map((_, i) => `pay_${i}`),
     "abandonedCount",
     ...BEHAVIOUR_QUESTIONS.map((q) => `beh_${q.key}`),
@@ -491,7 +544,23 @@ export function SubmitReportFlow() {
 
     try {
       let res;
-      if (isCommercial) {
+      if (isMainContractor) {
+        res = await submitMainContractorReport({
+          ...shared,
+          entityName: entityName.trim(),
+          projectAddressLine1: projectAddressLine1.trim(),
+          projectCity: projectCity.trim(),
+          courtDispute,
+          backChargesUnagreed: backCharges,
+          backChargesAmountGbp:
+            backChargesAmount.trim() === "" ? null : Number(backChargesAmount),
+          variationsNoPaper,
+          retentionStatus,
+          retentionAmountGbp:
+            retentionAmount.trim() === "" ? null : Number(retentionAmount),
+          projectReadinessScore: Number(projectReadiness),
+        });
+      } else if (isCommercial) {
         res = await submitCommercialClientReport({
           ...shared,
           entityName: entityName.trim(),
@@ -632,13 +701,13 @@ export function SubmitReportFlow() {
           <Section
             title="Who you are reporting"
             description={
-              isCommercial
+              isCompany
                 ? "Companies are public (Companies House) — full name and address may be shown."
                 : "Private clients are recorded by initials only — never a full name."
             }
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              {isCommercial ? (
+              {isCompany ? (
                 <>
                   <Field label="Company name" required error={errors.entityName}>
                     <input
@@ -766,7 +835,7 @@ export function SubmitReportFlow() {
               </Field>
             </div>
 
-            {isCommercial && (
+            {isCompany && (
               <div id="courtDispute">
                 <Field
                   label="Did the dispute end up in court?"
@@ -785,6 +854,120 @@ export function SubmitReportFlow() {
               </div>
             )}
           </Section>
+
+          {isMainContractor && (
+            <Section
+              title="Main contractor — chain issues"
+              description="Questions specific to working under a main contractor. Facts only — scores are calculated later."
+            >
+              {/* 1. Back-charges */}
+              <div
+                id="backCharges"
+                className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <span className="text-sm text-cri-charcoal sm:max-w-md">
+                  Did the main contractor deduct from your invoices for defects
+                  or damages that were NOT mutually agreed and accepted by both
+                  sides?
+                </span>
+                <div className="shrink-0">
+                  <TriState value={backCharges} onChange={setBackCharges} />
+                  <Err msg={errors.backCharges} />
+                </div>
+              </div>
+              <Field label="Amount deducted £ (optional)">
+                <input
+                  type="number"
+                  min={0}
+                  className={inputClass + " sm:w-48"}
+                  value={backChargesAmount}
+                  onChange={(e) => setBackChargesAmount(e.target.value)}
+                />
+              </Field>
+
+              {/* 2. Variations without paper */}
+              <div
+                id="variationsNoPaper"
+                className="flex flex-col gap-2 border-t border-gray-100 pt-4 sm:flex-row sm:items-start sm:justify-between"
+              >
+                <span className="text-sm text-cri-charcoal sm:max-w-md">
+                  Did the main contractor instruct extra work verbally and
+                  refuse to confirm it in writing (variation order)?
+                </span>
+                <div className="shrink-0">
+                  <TriState
+                    value={variationsNoPaper}
+                    onChange={setVariationsNoPaper}
+                  />
+                  <Err msg={errors.variationsNoPaper} />
+                </div>
+              </div>
+
+              {/* 3. Retention */}
+              <div id="retentionStatus" className="border-t border-gray-100 pt-4">
+                <span className="block text-sm font-medium text-cri-charcoal">
+                  Did the main contractor return your retention?
+                  <span className="text-red-600"> *</span>
+                </span>
+                <div className="mt-2 inline-flex flex-wrap rounded-lg border border-gray-300 p-0.5">
+                  {[
+                    { v: "NOT_RETURNED", label: "Not returned" },
+                    { v: "RETURNED", label: "Returned" },
+                    { v: "WITHIN_TERM", label: "Still within term" },
+                  ].map((o) => (
+                    <button
+                      key={o.v}
+                      type="button"
+                      onClick={() => setRetentionStatus(o.v)}
+                      className={
+                        "rounded-md px-3 py-1.5 text-sm transition " +
+                        (retentionStatus === o.v
+                          ? "bg-cri-green text-white"
+                          : "text-cri-steel hover:bg-gray-100")
+                      }
+                    >
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+                <Err msg={errors.retentionStatus} />
+                <p className="mt-1 text-xs text-cri-steel">
+                  &quot;Still within term&quot; = the return date hasn&apos;t
+                  passed yet, so it&apos;s not a problem.
+                </p>
+                <div className="mt-3">
+                  <Field label="Retention amount £ (optional)">
+                    <input
+                      type="number"
+                      min={0}
+                      className={inputClass + " sm:w-48"}
+                      value={retentionAmount}
+                      onChange={(e) => setRetentionAmount(e.target.value)}
+                    />
+                  </Field>
+                </div>
+              </div>
+
+              {/* 4. Project readiness 1-10 */}
+              <div
+                id="projectReadiness"
+                className="border-t border-gray-100 pt-4"
+              >
+                <span className="block text-sm font-medium text-cri-charcoal">
+                  Was the site ready for your stage of works?
+                  <span className="text-red-600"> *</span>
+                </span>
+                <p className="mb-2 mt-1 text-xs text-cri-steel">
+                  1 = not ready, caused major losses · 10 = fully ready
+                </p>
+                <Scale1to10
+                  value={projectReadiness}
+                  onChange={setProjectReadiness}
+                />
+                <Err msg={errors.projectReadiness} />
+              </div>
+            </Section>
+          )}
 
           <Section
             title="Payments"

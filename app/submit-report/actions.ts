@@ -120,6 +120,30 @@ const commercialClientSchema = z.object({
   courtDispute: z.enum(["YES", "NO"]),
 });
 
+const optionalAmount = z
+  .number()
+  .int()
+  .min(0)
+  .max(100000000)
+  .nullable()
+  .optional();
+
+// Main contractor → company (like commercial) + chain-specific questions.
+const mainContractorSchema = z.object({
+  ...commonShape,
+  entityName: z.string().trim().min(1).max(200),
+  projectAddressLine1: z.string().trim().max(200).optional().or(z.literal("")),
+  projectCity: z.string().trim().min(1).max(120),
+  courtDispute: z.enum(["YES", "NO"]),
+  // Chain-specific
+  backChargesUnagreed: behaviour,
+  backChargesAmountGbp: optionalAmount,
+  variationsNoPaper: behaviour,
+  retentionStatus: z.enum(["NOT_RETURNED", "RETURNED", "WITHIN_TERM"]),
+  retentionAmountGbp: optionalAmount,
+  projectReadinessScore: z.number().int().min(1).max(10),
+});
+
 export type SubmitState = { ok: boolean; formError?: string };
 
 // ---------------------------------------------------------------------------
@@ -302,6 +326,50 @@ export async function submitCommercialClientReport(
     });
   } catch (error) {
     console.error("Failed to create commercial client report", error);
+    return {
+      ok: false,
+      formError: "Something went wrong saving your report. Please try again.",
+    };
+  }
+
+  redirect("/submit-report/success");
+}
+
+export async function submitMainContractorReport(
+  input: unknown,
+): Promise<SubmitState> {
+  const parsed = mainContractorSchema.safeParse(input);
+  if (!parsed.success) {
+    return {
+      ok: false,
+      formError: "Please complete all required fields correctly.",
+    };
+  }
+  const d = parsed.data;
+
+  try {
+    await createRiskReport({
+      ...commonComputed(d),
+      entityType: "MAIN_CONTRACTOR",
+      entityName: d.entityName,
+      clientInitials: null,
+      isResidential: false,
+      projectAddressLine1: d.projectAddressLine1 || null,
+      projectCity: d.projectCity,
+      projectPostcode: d.projectPostcode,
+      publicArea: d.projectPostcode.trim().toUpperCase(),
+      formalDispute: d.courtDispute,
+      visibility: "PUBLIC",
+      // Chain-specific
+      backChargesUnagreed: d.backChargesUnagreed,
+      backChargesAmountGbp: d.backChargesAmountGbp ?? null,
+      variationsNoPaper: d.variationsNoPaper,
+      retentionStatus: d.retentionStatus,
+      retentionAmountGbp: d.retentionAmountGbp ?? null,
+      projectReadinessScore: d.projectReadinessScore,
+    });
+  } catch (error) {
+    console.error("Failed to create main contractor report", error);
     return {
       ok: false,
       formError: "Something went wrong saving your report. Please try again.",
