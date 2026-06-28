@@ -1,166 +1,60 @@
-import type { ReactNode } from "react";
+"use client";
+
+import { useEffect, useState } from "react";
+import type { RiskLevel } from "@prisma/client";
 import { RiskBadge } from "./RiskBadge";
-import { CompanyAtom } from "./CompanyAtom";
+import { Speedometer } from "./Speedometer";
+import { AtomGraphic } from "./AtomGraphic";
 import type { McAggregate } from "@/lib/level2/mainContractor";
 import type { CompanyFacts } from "@/lib/companiesHouse";
+import type { CompanyAtom } from "@/lib/level2/atom";
+
+const RISK_TEXT: Record<RiskLevel, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 
 function gbp(n: number | null): string {
   return n == null ? "—" : "£" + n.toLocaleString("en-GB");
 }
-
-function monthYear(d: Date | null): string {
-  return d ? d.toLocaleDateString("en-GB", { month: "short", year: "numeric" }) : "—";
-}
-
-function pctOf(count: number, total: number): string {
-  if (total === 0) return "0";
-  return `${count} of ${total} (${Math.round((count / total) * 100)}%)`;
-}
-
-function Gauge({
-  label,
-  value,
-  suffix,
-  muted = false,
-}: {
-  label: string;
-  value: string;
-  suffix?: string;
-  muted?: boolean;
-}) {
-  return (
-    <div className={`rounded-lg bg-cri-bg p-4 ${muted ? "opacity-60" : ""}`}>
-      <p className="text-sm text-cri-steel">{label}</p>
-      <p className="mt-0.5 text-2xl font-bold text-cri-charcoal">
-        {value}
-        {suffix ? <span className="text-sm font-normal text-cri-steel">{suffix}</span> : null}
-      </p>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  valueClass = "",
-}: {
-  label: string;
-  value: string;
-  valueClass?: string;
-}) {
-  return (
-    <div className="flex justify-between border-b border-cri-border/60 py-1.5 text-sm last:border-0">
-      <span className="text-cri-steel">{label}</span>
-      <span className={`font-medium text-cri-charcoal ${valueClass}`}>{value}</span>
-    </div>
-  );
-}
-
-function SectionTitle({ children, note }: { children: ReactNode; note?: string }) {
-  return (
-    <p className="mt-5 text-sm font-semibold text-cri-charcoal">
-      {children}
-      {note ? <span className="ml-1 text-xs font-normal text-cri-steel">· {note}</span> : null}
-    </p>
-  );
-}
-
-function statusClass(status: string): string {
-  const warn = [
-    "dissolved",
-    "liquidation",
-    "administration",
-    "insolvency-proceedings",
-    "receivership",
-    "voluntary-arrangement",
-  ];
-  if (status === "active") return "text-cri-green";
-  if (warn.includes(status)) return "text-cri-amber-dark";
-  return "text-cri-charcoal";
-}
-
 function isoDate(s: string | null): string {
   if (!s) return "—";
   const d = new Date(s);
-  if (Number.isNaN(d.getTime())) return s;
-  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+  return Number.isNaN(d.getTime())
+    ? s
+    : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+function pctOf(count: number, total: number): string {
+  return total === 0 ? "—" : `${count} of ${total} (${Math.round((count / total) * 100)}%)`;
+}
+function level(ratio: number, hi: number, mid: number): RiskLevel {
+  if (ratio >= hi) return "HIGH";
+  if (ratio >= mid) return "MEDIUM";
+  return "LOW";
 }
 
-function CompanyFactsBlock({ facts }: { facts: CompanyFacts | null }) {
-  if (!facts) {
-    return (
-      <>
-        <SectionTitle note="from Companies House">Company facts</SectionTitle>
-        <p className="mt-2 text-sm text-cri-steel">Company facts are unavailable right now.</p>
-      </>
-    );
-  }
-  const ageStr =
-    facts.ageYears == null
-      ? "—"
-      : facts.ageYears < 1
-        ? "under 1 year old"
-        : `${facts.ageYears} year${facts.ageYears === 1 ? "" : "s"} old`;
-  const incYear = facts.incorporatedOn ? facts.incorporatedOn.slice(0, 4) : "—";
-
-  const accountsValue = facts.accountsOverdue
-    ? facts.accountsNextDue
-      ? `Overdue (was due ${isoDate(facts.accountsNextDue)})`
-      : "Overdue"
-    : facts.accountsNextDue
-      ? `Next due ${isoDate(facts.accountsNextDue)}`
-      : "Up to date";
-
+function NoRecordPill() {
   return (
-    <>
-      <SectionTitle note="from Companies House (always available)">Company facts</SectionTitle>
-      <div className="mt-2">
-        <Row label="Company status" value={facts.statusLabel} valueClass={statusClass(facts.status)} />
-        <Row
-          label="Insolvency history"
-          value={facts.hasInsolvencyHistory ? "Yes" : "No"}
-          valueClass={facts.hasInsolvencyHistory ? "text-cri-amber-dark" : "text-cri-green"}
-        />
-        <Row
-          label="Outstanding charges (secured debt)"
-          value={facts.hasCharges ? "Yes" : "No"}
-          valueClass={facts.hasCharges ? "text-cri-amber-dark" : "text-cri-green"}
-        />
-        <Row label="Company type" value={facts.companyTypeLabel} />
-        <Row
-          label="Nature of business"
-          value={facts.sicLabels.length ? facts.sicLabels.join(" · ") : "—"}
-        />
-        <Row
-          label="Incorporated"
-          value={`${incYear} · ${ageStr}`}
-          valueClass={facts.ageYears != null && facts.ageYears < 1 ? "text-cri-amber-dark" : ""}
-        />
-        <Row
-          label="Accounts"
-          value={accountsValue}
-          valueClass={facts.accountsOverdue ? "text-cri-amber-dark" : "text-cri-green"}
-        />
-        <Row
-          label="Confirmation statement"
-          value={facts.confirmationOverdue ? "Overdue" : "Up to date"}
-          valueClass={facts.confirmationOverdue ? "text-cri-amber-dark" : "text-cri-green"}
-        />
-        <Row
-          label="Previous names"
-          value={facts.previousNames.length ? facts.previousNames.join(", ") : "None"}
-        />
-        {facts.registeredAddress ? (
-          <Row label="Registered address" value={facts.registeredAddress} />
-        ) : null}
-      </div>
-    </>
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-cri-border bg-cri-bg px-2.5 py-1 text-xs font-medium text-cri-steel">
+      <span className="h-1.5 w-1.5 rounded-full bg-cri-steel" aria-hidden />
+      No record yet
+    </span>
   );
+}
+
+function Row({ label, value, valueClass = "" }: { label: string; value: string; valueClass?: string }) {
+  return (
+    <div className="flex justify-between gap-4 border-b border-cri-border/60 py-2 text-sm last:border-0">
+      <span className="text-cri-steel">{label}</span>
+      <span className={`text-right font-medium text-cri-charcoal ${valueClass}`}>{value}</span>
+    </div>
+  );
+}
+
+function SectionTitle({ children }: { children: string }) {
+  return <p className="mt-7 mb-2 text-sm font-semibold uppercase tracking-wide text-cri-charcoal">{children}</p>;
 }
 
 export function CompanyReport({
   number,
-  aggregate,
+  aggregate: a,
   totalReports,
   facts,
 }: {
@@ -169,25 +63,46 @@ export function CompanyReport({
   totalReports: number;
   facts: CompanyFacts | null;
 }) {
-  const n = aggregate.reportCount;
+  const [atom, setAtom] = useState<CompanyAtom | null>(null);
+  const [atomState, setAtomState] = useState<"loading" | "error" | "done">("loading");
+
+  useEffect(() => {
+    let live = true;
+    (async () => {
+      try {
+        const res = await fetch(`/api/companies/atom?number=${encodeURIComponent(number)}`);
+        if (!res.ok) {
+          if (live) setAtomState("error");
+          return;
+        }
+        const data = (await res.json()) as CompanyAtom;
+        if (live) {
+          setAtom(data);
+          setAtomState("done");
+        }
+      } catch {
+        if (live) setAtomState("error");
+      }
+    })();
+    return () => {
+      live = false;
+    };
+  }, [number]);
+
+  const n = a.reportCount;
+  const has = n > 0;
   const name = facts?.name ?? `Company ${number}`;
+  const linked = atomState === "done" ? String(atom?.connected.length ?? 0) : "—";
 
-  const subtitle =
-    n > 0
-      ? `${n} report${n === 1 ? "" : "s"} · ${monthYear(aggregate.dateFrom)} – ${monthYear(aggregate.dateTo)}`
-      : totalReports > 0
-        ? "reports of another type on file"
-        : "0 reports";
+  const riskLabel = a.overallRisk ? RISK_TEXT[a.overallRisk] : n === 0 ? "No rating yet" : "Provisional";
+  const riskClass = !a.overallRisk
+    ? "text-cri-steel"
+    : a.overallRisk === "LOW"
+      ? "text-cri-green"
+      : "text-cri-amber-dark";
 
-  const riskPill =
-    aggregate.overallRisk != null ? (
-      <RiskBadge level={aggregate.overallRisk} />
-    ) : (
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-cri-border bg-cri-bg px-2.5 py-1 text-xs font-medium text-cri-steel">
-        <span className="h-1.5 w-1.5 rounded-full bg-cri-steel" aria-hidden />
-        {n === 0 ? "No rating yet" : "Provisional"}
-      </span>
-    );
+  const variation: RiskLevel | null = has ? level(a.variationsNoPaperReports / n, 0.4, 0.15) : null;
+  const dispute: RiskLevel | null = has ? level(a.formalDisputeReports / n, 0.3, 0.1) : null;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -195,133 +110,128 @@ export function CompanyReport({
         ← Back to search
       </a>
 
-      <div className="mt-4 rounded-xl border border-cri-border bg-white p-6 shadow-card sm:p-8">
+      <div className="mt-4 overflow-hidden rounded-2xl border border-cri-border bg-white shadow-card">
         {/* Header */}
-        <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="flex flex-wrap items-start justify-between gap-3 border-b border-cri-border px-6 py-5 sm:px-8">
           <div className="min-w-0">
-            <p className="text-xs uppercase tracking-wider text-cri-steel">Main contractor</p>
-            <h1 className="mt-1 text-2xl font-bold text-cri-charcoal">{name}</h1>
+            <h1 className="text-2xl font-bold text-cri-charcoal">{name}</h1>
             <p className="mt-1 text-sm text-cri-steel">
-              Companies House {number} · {subtitle}
+              Company no. {number}
+              {facts?.registeredAddress ? ` · ${facts.registeredAddress.split(",").slice(-2).join(",").trim()}` : ""}
             </p>
           </div>
-          <div className="text-right">
-            <p className="text-xs text-cri-steel">Overall risk</p>
-            <div className="mt-1">{riskPill}</div>
-          </div>
+          {facts ? (
+            <span
+              className={`rounded-full px-3 py-1 text-xs font-semibold ${
+                facts.status === "active"
+                  ? "bg-cri-green/10 text-cri-green"
+                  : "bg-cri-amber-light text-cri-amber-dark"
+              }`}
+            >
+              {facts.statusLabel}
+            </span>
+          ) : null}
         </div>
 
-        {/* Body */}
-        {n === 0 ? (
-          totalReports > 0 ? (
-            <p className="mt-5 rounded-lg bg-cri-bg px-4 py-3 text-sm text-cri-steel">
-              {totalReports} report{totalReports === 1 ? "" : "s"} exist for this company, but the
-              aggregated report for this company type is coming soon.
-            </p>
-          ) : (
+        <div className="px-6 py-6 sm:px-8">
+          {/* Counters */}
+          <div className="grid grid-cols-3 gap-3">
+            <div className="rounded-xl bg-cri-bg p-4">
+              <p className="text-xs text-cri-steel">Overall risk</p>
+              <p className={`mt-1 text-lg font-bold ${riskClass}`}>{riskLabel}</p>
+            </div>
+            <div className="rounded-xl bg-cri-bg p-4">
+              <p className="text-xs text-cri-steel">Reviews</p>
+              <p className="mt-1 text-lg font-bold text-cri-charcoal">{n}</p>
+            </div>
+            <div className="rounded-xl bg-cri-bg p-4">
+              <p className="text-xs text-cri-steel">Linked companies</p>
+              <p className="mt-1 text-lg font-bold text-cri-charcoal">{linked}</p>
+            </div>
+          </div>
+
+          {/* Contractor reviews */}
+          <SectionTitle>Contractor reviews</SectionTitle>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Speedometer label="Payment score" value={has ? a.paymentReliability : null} />
+            <Speedometer label="Communication" value={has ? a.communication : null} />
+          </div>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {variation ? <RiskBadge level={variation} label="Variation" /> : <NoRecordPill />}
+            {dispute ? <RiskBadge level={dispute} label="Dispute" /> : <NoRecordPill />}
+          </div>
+          <p className="mt-2 flex gap-1.5 text-xs text-cri-steel">
+            <span aria-hidden>ⓘ</span>
+            <span>
+              {has
+                ? `Based on ${n} report${n === 1 ? "" : "s"} · contractor-submitted, not CIX's opinion. Scores use a neutral 5/10 baseline a single report can't swing.`
+                : "No reviews yet — this is the report a buyer sees once contractors submit. Scores will fill in as reports arrive."}
+            </span>
+          </p>
+
+          {/* Full breakdown — always shown */}
+          <SectionTitle>Payment behaviour</SectionTitle>
+          <Row label="Average payment delay" value={has && a.avgPaymentDelayDays != null ? `${a.avgPaymentDelayDays} days` : "No record yet"} />
+          <Row label="Reports saying paid late" value={has ? pctOf(a.reportsPaidLate, n) : "No record yet"} />
+          <Row
+            label="Abandoned invoices (>60 days)"
+            value={has ? `${a.abandonedInvoicesReports} · ${gbp(a.abandonedInvoicesTotalGbp)}` : "No record yet"}
+          />
+
+          <SectionTitle>Deductions &amp; retention</SectionTitle>
+          <Row
+            label="Back-charges reported"
+            value={has ? (a.backChargesReports === 0 ? "0" : `${a.backChargesReports} of ${n} · avg ${gbp(a.backChargesAvgGbp)}`) : "No record yet"}
+          />
+          <Row label="Retention not returned" value={has ? pctOf(a.retentionNotReturnedReports, n) : "No record yet"} />
+          <Row label="Variations without paperwork" value={has ? pctOf(a.variationsNoPaperReports, n) : "No record yet"} />
+
+          <SectionTitle>Disputes</SectionTitle>
+          <Row label="Formal dispute raised" value={has ? pctOf(a.formalDisputeReports, n) : "No record yet"} />
+          <Row label="Contract value range" value={has && a.contractValueMinGbp != null ? `${gbp(a.contractValueMinGbp)} – ${gbp(a.contractValueMaxGbp)}` : "No record yet"} />
+          <Row label="Project areas" value={has && a.areas.length ? a.areas.join(" · ") : "No record yet"} />
+
+          {/* Connections (atom) */}
+          <SectionTitle>Connections</SectionTitle>
+          <AtomGraphic atom={atom} state={atomState} companyName={name} />
+
+          {/* Company details (Companies House) */}
+          <SectionTitle>Company details</SectionTitle>
+          {facts ? (
             <>
-              <p className="mt-5 rounded-lg bg-cri-bg px-4 py-3 text-sm text-cri-steel">
-                No reports yet — the indicators sit at a neutral baseline. This is{" "}
-                <strong className="font-semibold">not</strong> a good score, it means unrated.
-              </p>
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
-                <Gauge label="Payment reliability" value="5.0" suffix="/10" muted />
-                <Gauge label="Communication" value="5.0" suffix="/10" muted />
-                <Gauge label="Would work again" value="—" muted />
-              </div>
+              <Row label="Incorporated" value={`${isoDate(facts.incorporatedOn)}${facts.ageYears != null ? ` · ${facts.ageYears < 1 ? "under 1 year" : `${facts.ageYears} years`} old` : ""}`} valueClass={facts.ageYears != null && facts.ageYears < 1 ? "text-cri-amber-dark" : ""} />
+              <Row label="Type" value={facts.companyTypeLabel} />
+              <Row label="Nature of business (SIC)" value={facts.sicLabels.length ? facts.sicLabels.join(" · ") : "—"} />
+              <Row label="Previous names" value={facts.previousNames.length ? facts.previousNames.join(", ") : "None"} />
+              <Row label="Registered office" value={facts.registeredAddress ?? "—"} />
             </>
-          )
-        ) : (
-          <>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
-              <Gauge
-                label="Payment reliability"
-                value={aggregate.paymentReliability.toFixed(1)}
-                suffix="/10"
-              />
-              <Gauge label="Communication" value={aggregate.communication.toFixed(1)} suffix="/10" />
-              <Gauge
-                label="Would work again"
-                value={aggregate.wouldWorkAgainPct == null ? "—" : String(aggregate.wouldWorkAgainPct)}
-                suffix={aggregate.wouldWorkAgainPct == null ? undefined : "%"}
-              />
-            </div>
-            <p className="mt-2.5 flex gap-1.5 text-xs text-cri-steel">
-              <span aria-hidden>ⓘ</span>
-              <span>
-                Scores use a Bayesian average — a neutral 5/10 baseline that a single report can&apos;t
-                swing. The more reports, the more the score reflects reality.
-              </span>
-            </p>
-            {aggregate.overallRisk == null ? (
-              <p className="mt-2 text-xs text-cri-amber-dark">
-                Provisional — a Low / Medium / High risk rating appears once there are 3 or more
-                reports.
-              </p>
-            ) : null}
-          </>
-        )}
+          ) : (
+            <p className="py-2 text-sm text-cri-steel">Company details are unavailable right now.</p>
+          )}
 
-        {/* Company facts — always shown */}
-        <CompanyFactsBlock facts={facts} />
-
-        {/* Full breakdown — only when there are reports of this type */}
-        {n > 0 ? (
-          <>
-            <div className="mt-6 mb-1 flex items-center gap-2 text-xs text-cri-steel">
-              <span>Full breakdown</span>
-              <div className="h-px flex-1 bg-cri-border" />
-            </div>
-
-            <SectionTitle note="raw figures, not smoothed">Payment behaviour</SectionTitle>
-            <div className="mt-2">
+          {/* Filing health (Companies House) */}
+          <SectionTitle>Filing health</SectionTitle>
+          {facts ? (
+            <>
               <Row
-                label="Average payment delay"
-                value={aggregate.avgPaymentDelayDays == null ? "—" : `${aggregate.avgPaymentDelayDays} days`}
+                label="Accounts"
+                value={facts.accountsOverdue ? (facts.accountsNextDue ? `Overdue (was due ${isoDate(facts.accountsNextDue)})` : "Overdue") : facts.accountsNextDue ? `Next due ${isoDate(facts.accountsNextDue)}` : "Up to date"}
+                valueClass={facts.accountsOverdue ? "text-cri-amber-dark" : "text-cri-green"}
               />
-              <Row label="Reports saying paid late" value={pctOf(aggregate.reportsPaidLate, n)} />
-              <Row
-                label="Abandoned invoices (>60 days)"
-                value={`${aggregate.abandonedInvoicesReports} report${
-                  aggregate.abandonedInvoicesReports === 1 ? "" : "s"
-                } · ${gbp(aggregate.abandonedInvoicesTotalGbp)}`}
-              />
-            </div>
+              <Row label="Confirmation statement" value={facts.confirmationOverdue ? "Overdue" : "Up to date"} valueClass={facts.confirmationOverdue ? "text-cri-amber-dark" : "text-cri-green"} />
+              <Row label="Charges / mortgages" value={facts.hasCharges ? "Registered" : "None"} valueClass={facts.hasCharges ? "text-cri-amber-dark" : "text-cri-green"} />
+              <Row label="Insolvency history" value={facts.hasInsolvencyHistory ? "Yes" : "No"} valueClass={facts.hasInsolvencyHistory ? "text-cri-amber-dark" : "text-cri-green"} />
+            </>
+          ) : (
+            <p className="py-2 text-sm text-cri-steel">Filing health is unavailable right now.</p>
+          )}
+        </div>
 
-            <SectionTitle>Deductions &amp; retention</SectionTitle>
-            <div className="mt-2">
-              <Row
-                label="Back-charges reported"
-                value={
-                  aggregate.backChargesReports === 0
-                    ? "0"
-                    : `${aggregate.backChargesReports} of ${n} · avg ${gbp(aggregate.backChargesAvgGbp)}`
-                }
-              />
-              <Row label="Retention not returned" value={pctOf(aggregate.retentionNotReturnedReports, n)} />
-              <Row label="Variations without paperwork" value={pctOf(aggregate.variationsNoPaperReports, n)} />
-            </div>
-
-            <SectionTitle>Disputes &amp; evidence base</SectionTitle>
-            <div className="mt-2">
-              <Row label="Formal dispute raised" value={pctOf(aggregate.formalDisputeReports, n)} />
-              <Row
-                label="Contract value range"
-                value={
-                  aggregate.contractValueMinGbp == null
-                    ? "—"
-                    : `${gbp(aggregate.contractValueMinGbp)} – ${gbp(aggregate.contractValueMaxGbp)}`
-                }
-              />
-              <Row
-                label="Project areas"
-                value={aggregate.areas.length ? aggregate.areas.join(" · ") : "—"}
-              />
-            </div>
-          </>
-        ) : null}
-
-        <CompanyAtom number={number} />
+        {/* Footer */}
+        <div className="border-t border-cri-border bg-cri-bg/60 px-6 py-4 text-xs text-cri-steel sm:px-8">
+          Reports are moderated and contractor-submitted — they reflect reporters&apos; experiences, not
+          CIX&apos;s opinion. Company facts come from Companies House.
+        </div>
       </div>
     </div>
   );
