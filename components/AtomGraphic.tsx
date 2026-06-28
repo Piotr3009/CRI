@@ -43,10 +43,11 @@ function displayName(raw: string): string {
 function nucleusLines(atom: CompanyAtom | null, state: LoadState): string[] {
   if (state !== "done" || !atom) return ["Owners"];
   const owners = atom.core.filter((p) => p.isOwner).map((p) => p.name);
-  const base = owners.length ? owners : atom.core.map((p) => p.name);
-  if (base.length === 0) return ["Owners"];
-  const shown = base.slice(0, 2).map(displayName);
-  if (base.length > 2) shown.push(`+${base.length - 2} more`);
+  const base = (owners.length ? owners : atom.core.map((p) => p.name)).map(displayName);
+  const unique = Array.from(new Set(base));
+  if (unique.length === 0) return ["Owners"];
+  const shown = unique.slice(0, 2);
+  if (unique.length > 2) shown.push(`+${unique.length - 2} more`);
   return shown;
 }
 

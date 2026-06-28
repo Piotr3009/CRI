@@ -15,8 +15,9 @@
  * Tuning knobs (safe to change):
  */
 export const NOMINEE_APPOINTMENTS_THRESHOLD = 20; // >this ⇒ likely a professional/nominee director
-export const MAX_OFFICERS_EXPANDED = 6; // cap people we expand (each now costs a search + several fetches)
-export const MAX_RECORDS_PER_PERSON = 4; // CH stores a person under several officer records (by address); merge up to this many
+export const MAX_OFFICERS_EXPANDED = 6; // cap people we expand (each costs a search + several fetches)
+export const MAX_RECORDS_PER_PERSON = 12; // CH stores a person under MANY officer records; merge up to this many
+export const MAX_TOTAL_APPOINTMENT_FETCHES = 30; // global ceiling on appointment lookups per atom
 
 export type AtomPerson = {
   name: string;
@@ -249,8 +250,16 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
     .filter((p) => !p.ceased_on && p.ceased !== true)
     .map((p) => ({ name: p.name ?? "", dob: dob(p.date_of_birth) }));
 
-  const toExpand = officers.slice(0, MAX_OFFICERS_EXPANDED);
-  const truncated = officers.length > MAX_OFFICERS_EXPANDED;
+  // One person can appear on this company under several officer records (e.g.
+  // two roles). Collapse them so the nucleus shows each owner once and we don't
+  // expand the same person twice.
+  const uniqueOfficers: OfficerInput[] = [];
+  for (const o of officers) {
+    if (!uniqueOfficers.some((u) => samePerson(u, o))) uniqueOfficers.push(o);
+  }
+
+  const toExpand = uniqueOfficers.slice(0, MAX_OFFICERS_EXPANDED);
+  const truncated = uniqueOfficers.length > MAX_OFFICERS_EXPANDED;
 
   type ApptItem = {
     appointed_to?: { company_name?: string; company_number?: string; company_status?: string };
@@ -261,58 +270,57 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
     links?: { self?: string };
   };
 
-  const results = await Promise.all(
-    toExpand.map(async (o) => {
-      // CH keeps a person under SEVERAL officer records (one per correspondence
-      // address used over time). The record on this company only lists the
-      // companies registered with that same address — older/dissolved companies
-      // sit under other records. So search the person by name and merge the
-      // appointments from every record that matches on name + date of birth.
-      const search = await chGet(
-        `/search/officers?q=${encodeURIComponent(o.name)}&items_per_page=20`,
-      );
-      const matchedIds = ((search?.items as OfficerSearchItem[]) ?? [])
-        .filter((it) => it.title && it.links?.self)
-        .filter((it) => samePerson({ name: it.title as string, dob: dob(it.date_of_birth) }, o))
-        .map((it) => extractOfficerId(it.links!.self as string))
-        .filter(Boolean);
-
-      const ids = Array.from(new Set([o.officerId, ...matchedIds])).slice(
-        0,
-        MAX_RECORDS_PER_PERSON,
-      );
-
-      const apptLists = await Promise.all(
-        ids.map((id) =>
-          chGet(`/officers/${encodeURIComponent(id)}/appointments?items_per_page=50`),
-        ),
-      );
-
-      const seen = new Set<string>();
-      const companies: Array<{ companyName: string; companyNumber: string; status: string }> = [];
-      for (const appts of apptLists) {
-        for (const it of (appts?.items as ApptItem[]) ?? []) {
-          const num = it.appointed_to?.company_number;
-          if (!num || seen.has(num)) continue;
-          seen.add(num);
-          companies.push({
-            companyName: it.appointed_to!.company_name ?? "",
-            companyNumber: num,
-            status: it.appointed_to!.company_status ?? "active",
-          });
-        }
-      }
-
-      const total = companies.length; // unique companies for this person
-      if (total > NOMINEE_APPOINTMENTS_THRESHOLD) {
-        return { id: o.officerId, exp: { expanded: false, total, companies: [] } as Expansion };
-      }
-      return { id: o.officerId, exp: { expanded: true, total, companies } as Expansion };
-    }),
-  );
-
+  // CH keeps a person under MANY officer records (different addresses / filings
+  // over time). The record on this company only lists the companies filed under
+  // it — older/dissolved companies sit under other records. So search the person
+  // by name and merge appointments from every record that matches on name + DOB.
+  // People are processed sequentially under a global fetch budget; records for
+  // one person are fetched in parallel.
   const expansions: Record<string, Expansion> = {};
-  for (const r of results) expansions[r.id] = r.exp;
+  let budget = MAX_TOTAL_APPOINTMENT_FETCHES;
 
-  return assembleAtom(number, officers, pscList, expansions, truncated);
+  for (const o of toExpand) {
+    const search = await chGet(
+      `/search/officers?q=${encodeURIComponent(o.name)}&items_per_page=35`,
+    );
+    const matchedIds = ((search?.items as OfficerSearchItem[]) ?? [])
+      .filter((it) => it.title && it.links?.self)
+      .filter((it) => samePerson({ name: it.title as string, dob: dob(it.date_of_birth) }, o))
+      .map((it) => extractOfficerId(it.links!.self as string))
+      .filter(Boolean);
+
+    const allIds = Array.from(new Set([o.officerId, ...matchedIds]));
+    const cap = Math.max(0, Math.min(MAX_RECORDS_PER_PERSON, budget));
+    const ids = allIds.slice(0, cap);
+    budget -= ids.length;
+
+    const apptLists = await Promise.all(
+      ids.map((id) => chGet(`/officers/${encodeURIComponent(id)}/appointments?items_per_page=50`)),
+    );
+
+    const seen = new Set<string>();
+    const companies: Array<{ companyName: string; companyNumber: string; status: string }> = [];
+    for (const appts of apptLists) {
+      for (const it of (appts?.items as ApptItem[]) ?? []) {
+        const num = it.appointed_to?.company_number;
+        if (!num || seen.has(num)) continue;
+        seen.add(num);
+        companies.push({
+          companyName: it.appointed_to!.company_name ?? "",
+          companyNumber: num,
+          status: it.appointed_to!.company_status ?? "active",
+        });
+      }
+    }
+
+    const total = companies.length; // unique companies for this person
+    expansions[o.officerId] =
+      total > NOMINEE_APPOINTMENTS_THRESHOLD
+        ? { expanded: false, total, companies: [] }
+        : { expanded: true, total, companies };
+
+    if (budget <= 0) break;
+  }
+
+  return assembleAtom(number, uniqueOfficers, pscList, expansions, truncated);
 }
