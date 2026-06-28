@@ -39,6 +39,18 @@ function displayName(raw: string): string {
   return s.length > 16 ? `${s.slice(0, 15)}…` : s;
 }
 
+function insolvencyVerdict(
+  count: number,
+): { label: string; color: string; bg: string } | null {
+  if (count >= 3)
+    return { label: `Phoenix pattern — ${count} linked companies failed`, color: "#FFFFFF", bg: "#D64545" };
+  if (count === 2)
+    return { label: "Concern — 2 linked companies have insolvency history", color: "#B27C14", bg: "#FBF1DD" };
+  if (count === 1)
+    return { label: "Watch — 1 linked company has insolvency history", color: "#B27C14", bg: "#FBF1DD" };
+  return { label: "No insolvencies among linked companies", color: "#344E41", bg: "#EAF0EC" };
+}
+
 /** Owner names go in the nucleus (electrons orbit the owners, not the company). */
 function nucleusLines(atom: CompanyAtom | null, state: LoadState): string[] {
   if (state !== "done" || !atom) return ["Owners"];
@@ -78,9 +90,19 @@ export function AtomGraphic({
   const lines = nucleusLines(atom, state);
   const lineH = 12.5;
   const firstY = CY - ((lines.length - 1) * lineH) / 2 + 3.5;
+  const verdict =
+    state === "done" && connected.length > 0 ? insolvencyVerdict(atom?.insolvencyCount ?? 0) : null;
 
   return (
     <div>
+      {verdict ? (
+        <div
+          className="mb-3 rounded-lg px-3 py-2 text-sm font-semibold"
+          style={{ backgroundColor: verdict.bg, color: verdict.color }}
+        >
+          {verdict.label}
+        </div>
+      ) : null}
       <div className="rounded-xl border border-cri-border bg-cri-bg/50 p-2">
         <svg viewBox="0 0 360 215" className="mx-auto w-full max-w-[380px]" role="img" aria-label={`Companies connected to ${companyName}`}>
           {/* orbits */}
@@ -98,7 +120,7 @@ export function AtomGraphic({
                 cx={p.x.toFixed(1)}
                 cy={p.y.toFixed(1)}
                 r="11"
-                fill={statusColor(c.statusLabel)}
+                fill={c.insolvent ? "#D64545" : statusColor(c.statusLabel)}
                 stroke={c.viaOwner ? "#1F2933" : "#FFFFFF"}
                 strokeWidth={c.viaOwner ? "2.5" : "2"}
               />
@@ -134,9 +156,18 @@ export function AtomGraphic({
         <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
           {connected.map((c: AtomCompany) => (
             <div key={c.number} className="flex items-center gap-2 text-sm">
-              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: statusColor(c.statusLabel) }} aria-hidden />
+              <span
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: c.insolvent ? "#D64545" : statusColor(c.statusLabel) }}
+                aria-hidden
+              />
               <span className="truncate font-medium text-cri-charcoal">{c.name}</span>
-              <span className="ml-auto shrink-0 text-xs text-cri-steel">{c.statusLabel}</span>
+              <span
+                className="ml-auto shrink-0 text-xs"
+                style={{ color: c.insolvent ? "#D64545" : "#6B7280" }}
+              >
+                {c.insolvent ? "Insolvency" : c.statusLabel}
+              </span>
             </div>
           ))}
         </div>

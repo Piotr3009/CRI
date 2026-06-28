@@ -18,6 +18,7 @@ export const NOMINEE_APPOINTMENTS_THRESHOLD = 20; // >this ⇒ likely a professi
 export const MAX_OFFICERS_EXPANDED = 6; // cap people we expand (each costs a search + several fetches)
 export const MAX_RECORDS_PER_PERSON = 12; // CH stores a person under MANY officer records; merge up to this many
 export const MAX_TOTAL_APPOINTMENT_FETCHES = 30; // global ceiling on appointment lookups per atom
+export const MAX_INSOLVENCY_CHECKS = 12; // cap profile lookups for insolvency history
 
 export type AtomPerson = {
   name: string;
@@ -35,12 +36,14 @@ export type AtomCompany = {
   statusLabel: string;
   viaOwner: boolean; // linked via at least one owner of this company
   people: string[]; // names of THIS company's people who link to it
+  insolvent: boolean; // currently in an insolvency process OR has insolvency history
 };
 
 export type CompanyAtom = {
   core: AtomPerson[];
   connected: AtomCompany[];
   truncated: boolean; // more officers than we expanded
+  insolvencyCount: number; // # connected companies that failed (insolvency) — the phoenix signal
 };
 
 // ---- helpers (pure) --------------------------------------------------------
@@ -125,6 +128,19 @@ const DEAD = new Set([
   "converted-closed",
 ]);
 
+// Real insolvency processes — NOT plain "dissolved" (which is usually a normal,
+// voluntary strike-off and not a warning on its own).
+const INSOLVENCY_STATUSES = new Set([
+  "liquidation",
+  "administration",
+  "receivership",
+  "voluntary-arrangement",
+  "insolvency-proceedings",
+]);
+function isInsolventStatus(status: string): boolean {
+  return INSOLVENCY_STATUSES.has(status);
+}
+
 export type OfficerInput = { name: string; dob: string; role: string; officerId: string };
 export type PscInput = { name: string; dob: string };
 export type Expansion = {
@@ -172,6 +188,7 @@ export function assembleAtom(
           statusLabel: statusLabel(c.status),
           viaOwner: ownerLink,
           people: [o.name],
+          insolvent: isInsolventStatus(c.status),
         });
       }
     }
@@ -180,11 +197,31 @@ export function assembleAtom(
   const connected = Array.from(byNumber.values());
   connected.sort((a, b) => strength(b) - strength(a));
 
-  return { core, connected, truncated };
+  const insolvencyCount = connected.filter((c) => c.insolvent).length;
+  return { core, connected, truncated, insolvencyCount };
+}
+
+/**
+ * Pure: OR in insolvency HISTORY (a company that failed then dissolved shows
+ * status "dissolved", so current status alone misses it). `historyMap` maps a
+ * company number to whether Companies House records an insolvency case for it.
+ */
+export function applyInsolvencyHistory(
+  atom: CompanyAtom,
+  historyMap: Record<string, boolean>,
+): CompanyAtom {
+  const connected = atom.connected.map((c) => ({
+    ...c,
+    insolvent: c.insolvent || historyMap[c.number] === true,
+  }));
+  connected.sort((a, b) => strength(b) - strength(a));
+  return { ...atom, connected, insolvencyCount: connected.filter((c) => c.insolvent).length };
 }
 
 function strength(c: AtomCompany): number {
-  return (c.viaOwner ? 2 : 0) + (DEAD.has(c.status) ? 1 : 0) + (c.people.length - 1);
+  return (
+    (c.insolvent ? 3 : 0) + (c.viaOwner ? 2 : 0) + (DEAD.has(c.status) ? 1 : 0) + (c.people.length - 1)
+  );
 }
 
 // ---- CH orchestration (I/O) ------------------------------------------------
@@ -322,5 +359,25 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
     if (budget <= 0) break;
   }
 
-  return assembleAtom(number, uniqueOfficers, pscList, expansions, truncated);
+  const atom = assembleAtom(number, uniqueOfficers, pscList, expansions, truncated);
+
+  // Insolvency HISTORY pass: a company that failed often shows as "dissolved"
+  // today, so current status alone misses it. Check the profile flag for the
+  // non-active connected companies that aren't already flagged by status.
+  const toCheck = atom.connected
+    .filter((c) => c.status !== "active" && !c.insolvent)
+    .slice(0, MAX_INSOLVENCY_CHECKS)
+    .map((c) => c.number);
+
+  if (toCheck.length === 0) return atom;
+
+  const historyMap: Record<string, boolean> = {};
+  const profiles = await Promise.all(
+    toCheck.map((num) => chGet(`/company/${encodeURIComponent(num)}`)),
+  );
+  toCheck.forEach((num, i) => {
+    historyMap[num] = (profiles[i]?.has_insolvency_history as boolean) === true;
+  });
+
+  return applyInsolvencyHistory(atom, historyMap);
 }
