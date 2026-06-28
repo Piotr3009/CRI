@@ -15,7 +15,8 @@
  * Tuning knobs (safe to change):
  */
 export const NOMINEE_APPOINTMENTS_THRESHOLD = 20; // >this ⇒ likely a professional/nominee director
-export const MAX_OFFICERS_EXPANDED = 8; // cap CH calls per atom
+export const MAX_OFFICERS_EXPANDED = 6; // cap people we expand (each now costs a search + several fetches)
+export const MAX_RECORDS_PER_PERSON = 4; // CH stores a person under several officer records (by address); merge up to this many
 
 export type AtomPerson = {
   name: string;
@@ -232,25 +233,65 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
   type ApptItem = {
     appointed_to?: { company_name?: string; company_number?: string; company_status?: string };
   };
+  type OfficerSearchItem = {
+    title?: string;
+    date_of_birth?: { month?: number; year?: number };
+    links?: { self?: string };
+  };
 
   const results = await Promise.all(
     toExpand.map(async (o) => {
-      const appts = await chGet(
-        `/officers/${encodeURIComponent(o.officerId)}/appointments?items_per_page=50`,
+      // CH keeps a person under SEVERAL officer records (one per correspondence
+      // address used over time). The record on this company only lists the
+      // companies registered with that same address — older/dissolved companies
+      // sit under other records. So search the person by name and merge the
+      // appointments from every record that matches on name + date of birth.
+      const search = await chGet(
+        `/search/officers?q=${encodeURIComponent(o.name)}&items_per_page=20`,
       );
-      const items = (appts?.items as ApptItem[]) ?? [];
-      const total =
-        typeof appts?.total_results === "number" ? (appts.total_results as number) : items.length;
-      if (!appts || total > NOMINEE_APPOINTMENTS_THRESHOLD) {
+      const matchedIds = ((search?.items as OfficerSearchItem[]) ?? [])
+        .filter((it) => it.title && it.links?.self)
+        .filter(
+          (it) =>
+            normName(it.title as string) === normName(o.name) &&
+            (() => {
+              const d = dob(it.date_of_birth);
+              return !o.dob || !d || d === o.dob;
+            })(),
+        )
+        .map((it) => extractOfficerId(it.links!.self as string))
+        .filter(Boolean);
+
+      const ids = Array.from(new Set([o.officerId, ...matchedIds])).slice(
+        0,
+        MAX_RECORDS_PER_PERSON,
+      );
+
+      const apptLists = await Promise.all(
+        ids.map((id) =>
+          chGet(`/officers/${encodeURIComponent(id)}/appointments?items_per_page=50`),
+        ),
+      );
+
+      const seen = new Set<string>();
+      const companies: Array<{ companyName: string; companyNumber: string; status: string }> = [];
+      for (const appts of apptLists) {
+        for (const it of (appts?.items as ApptItem[]) ?? []) {
+          const num = it.appointed_to?.company_number;
+          if (!num || seen.has(num)) continue;
+          seen.add(num);
+          companies.push({
+            companyName: it.appointed_to!.company_name ?? "",
+            companyNumber: num,
+            status: it.appointed_to!.company_status ?? "active",
+          });
+        }
+      }
+
+      const total = companies.length; // unique companies for this person
+      if (total > NOMINEE_APPOINTMENTS_THRESHOLD) {
         return { id: o.officerId, exp: { expanded: false, total, companies: [] } as Expansion };
       }
-      const companies = items
-        .filter((it) => it.appointed_to?.company_number)
-        .map((it) => ({
-          companyName: it.appointed_to!.company_name ?? "",
-          companyNumber: it.appointed_to!.company_number as string,
-          status: it.appointed_to!.company_status ?? "active",
-        }));
       return { id: o.officerId, exp: { expanded: true, total, companies } as Expansion };
     }),
   );

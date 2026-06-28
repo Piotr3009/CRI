@@ -3,10 +3,11 @@ import type { CompanyAtom, AtomCompany } from "@/lib/level2/atom";
 type LoadState = "loading" | "error" | "done";
 
 const CX = 180;
-const CY = 100;
-const RX = 150;
-const RY = 62;
-const MAX_NODES = 10;
+const CY = 105;
+const ORX = 150; // orbit radius x
+const ORY = 56; // orbit radius y
+const TILT = 22; // orbit tilt in degrees
+const MAX_NODES = 12;
 
 function statusColor(statusLabel: string): string {
   switch (statusLabel) {
@@ -24,17 +25,23 @@ function statusColor(statusLabel: string): string {
   }
 }
 
+/** Place node i (of n) on one of two tilted ellipses so electrons sit ON the orbits. */
 function nodePos(i: number, n: number) {
-  // Even spread starting at top; alternate two ellipse radii for an orbital feel.
-  const angle = (-90 + (360 / Math.max(n, 1)) * i) * (Math.PI / 180);
-  const rx = i % 2 === 0 ? RX : RX * 0.74;
-  const ry = i % 2 === 0 ? RY : RY * 1.18;
-  return { x: CX + rx * Math.cos(angle), y: CY + ry * Math.sin(angle) };
+  const tiltDeg = i % 2 === 0 ? TILT : -TILT;
+  const t = ((-90 + (360 / Math.max(n, 1)) * i) * Math.PI) / 180; // parametric angle
+  const ex = ORX * Math.cos(t);
+  const ey = ORY * Math.sin(t);
+  const r = (tiltDeg * Math.PI) / 180;
+  return {
+    x: CX + ex * Math.cos(r) - ey * Math.sin(r),
+    y: CY + ex * Math.sin(r) + ey * Math.cos(r),
+  };
 }
 
-function nucleusLabel(name: string): string {
-  const trimmed = name.replace(/\b(LIMITED|LTD|GROUP|PLC|LLP)\b/gi, "").trim();
-  return (trimmed || name).slice(0, 16);
+function nucleusLines(name: string): string[] {
+  const cleaned = name.replace(/\b(LIMITED|LTD|PLC|LLP|GROUP|THE)\b/gi, "").trim();
+  const words = (cleaned || name).split(/\s+/).filter(Boolean);
+  return words.slice(0, 2).map((w) => (w.length > 9 ? w.slice(0, 9) : w));
 }
 
 export function AtomGraphic({
@@ -48,40 +55,50 @@ export function AtomGraphic({
 }) {
   const connected = atom?.connected ?? [];
   const nodes = connected.slice(0, MAX_NODES);
+  const lines = nucleusLines(companyName);
 
   return (
     <div>
       <div className="rounded-xl border border-cri-border bg-cri-bg/50 p-2">
-        <svg viewBox="0 0 360 200" className="mx-auto w-full max-w-[360px]" role="img" aria-label="Connected companies diagram">
-          {/* decorative orbits */}
-          <g stroke="#E5E7EB" fill="none" strokeWidth="1">
-            <ellipse cx={CX} cy={CY} rx={RX} ry={RY} transform={`rotate(18 ${CX} ${CY})`} />
-            <ellipse cx={CX} cy={CY} rx={RX} ry={RY} transform={`rotate(-18 ${CX} ${CY})`} />
+        <svg viewBox="0 0 360 210" className="mx-auto w-full max-w-[380px]" role="img" aria-label="Connected companies diagram">
+          {/* orbits — clearly visible */}
+          <g fill="none" stroke="#8A9097" strokeOpacity="0.55" strokeWidth="1.4">
+            <ellipse cx={CX} cy={CY} rx={ORX} ry={ORY} transform={`rotate(${TILT} ${CX} ${CY})`} />
+            <ellipse cx={CX} cy={CY} rx={ORX} ry={ORY} transform={`rotate(${-TILT} ${CX} ${CY})`} />
           </g>
 
-          {/* connectors + electrons */}
+          {/* electrons (on the orbits) */}
           {nodes.map((c, i) => {
             const p = nodePos(i, nodes.length);
             return (
-              <g key={c.number}>
-                <line x1={CX} y1={CY} x2={p.x.toFixed(1)} y2={p.y.toFixed(1)} stroke="#E5E7EB" strokeWidth="1" />
-                <circle
-                  cx={p.x.toFixed(1)}
-                  cy={p.y.toFixed(1)}
-                  r="9"
-                  fill={statusColor(c.statusLabel)}
-                  stroke={c.viaOwner ? "#1F2933" : "none"}
-                  strokeWidth={c.viaOwner ? "1.5" : "0"}
-                />
-              </g>
+              <circle
+                key={c.number}
+                cx={p.x.toFixed(1)}
+                cy={p.y.toFixed(1)}
+                r="11"
+                fill={statusColor(c.statusLabel)}
+                stroke={c.viaOwner ? "#1F2933" : "#FFFFFF"}
+                strokeWidth={c.viaOwner ? "2.5" : "2"}
+              />
             );
           })}
 
           {/* nucleus */}
-          <circle cx={CX} cy={CY} r="30" fill="#344E41" />
-          <text x={CX} y={CY + 4} textAnchor="middle" fontSize="10" fontWeight="500" fill="#FFFFFF">
-            {nucleusLabel(companyName)}
-          </text>
+          <circle cx={CX} cy={CY} r="36" fill="#344E41" stroke="#FFFFFF" strokeWidth="2" />
+          {lines.length === 1 ? (
+            <text x={CX} y={CY + 4} textAnchor="middle" fontSize="11" fontWeight="600" fill="#FFFFFF">
+              {lines[0]}
+            </text>
+          ) : (
+            <>
+              <text x={CX} y={CY - 3} textAnchor="middle" fontSize="10" fontWeight="600" fill="#FFFFFF">
+                {lines[0]}
+              </text>
+              <text x={CX} y={CY + 11} textAnchor="middle" fontSize="10" fontWeight="600" fill="#FFFFFF">
+                {lines[1]}
+              </text>
+            </>
+          )}
         </svg>
       </div>
 
@@ -96,11 +113,7 @@ export function AtomGraphic({
         <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
           {connected.map((c: AtomCompany) => (
             <div key={c.number} className="flex items-center gap-2 text-sm">
-              <span
-                className="h-2.5 w-2.5 shrink-0 rounded-full"
-                style={{ backgroundColor: statusColor(c.statusLabel) }}
-                aria-hidden
-              />
+              <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: statusColor(c.statusLabel) }} aria-hidden />
               <span className="truncate font-medium text-cri-charcoal">{c.name}</span>
               <span className="ml-auto shrink-0 text-xs text-cri-steel">{c.statusLabel}</span>
             </div>
