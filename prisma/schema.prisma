@@ -135,6 +135,8 @@ model User {
   email          String         @unique
   name           String?
   companyName    String?
+  companyNumber  String? // UK CRN of the reporter's own company (optional; sole traders have none)
+  tradeType      String? // reporter's trade, e.g. "Electrical" (prefills Your details)
   phone          String?
   role           UserRole       @default(CONTRACTOR)
   verifiedStatus VerifiedStatus @default(UNVERIFIED)

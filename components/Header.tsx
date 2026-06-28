@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { ShieldIcon, ArrowRightIcon } from "./Icons";
+import { AuthMenu } from "./auth/AuthMenu";
 
 const NAV_LINKS = [
   { href: "/#how-it-works", label: "How It Works" },
@@ -47,9 +48,7 @@ export function Header() {
         </nav>
 
         <div className="hidden md:block">
-          <Link href="/pricing" className="btn-primary">
-            Join as Verified Contractor
-          </Link>
+          <AuthMenu />
         </div>
 
         {/* Mobile menu (JS-free disclosure) */}
