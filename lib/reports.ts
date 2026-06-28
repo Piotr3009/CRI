@@ -16,6 +16,7 @@ import type {
 } from "@prisma/client";
 import { prisma } from "./db";
 import { toPublicReport, type PublicReport } from "./privacy";
+import type { McReportRow } from "./level2/mainContractor";
 
 // ---------------------------------------------------------------------------
 // Create
@@ -226,4 +227,73 @@ export async function createRightToReply(data: {
   responseText: string;
 }) {
   return prisma.rightToReply.create({ data });
+}
+
+// ---------------------------------------------------------------------------
+// Level-2 (final report) reads — aggregate by Companies House number
+// ---------------------------------------------------------------------------
+
+/**
+ * Raw rows a MAIN_CONTRACTOR final report needs, for one CH number. Selects
+ * ONLY scoring/fact fields (no reporter PII) — privacy-safe by construction.
+ * APPROVED + non-admin-only only.
+ */
+export async function getMainContractorReportRows(
+  chNumber: string,
+): Promise<McReportRow[]> {
+  const rows = await prisma.riskReport.findMany({
+    where: {
+      moderationStatus: "APPROVED",
+      visibility: { not: "ADMIN_ONLY" },
+      entityType: "MAIN_CONTRACTOR",
+      companiesHouseNumber: chNumber,
+    },
+    select: {
+      createdAt: true,
+      paymentScore: true,
+      communicationScore: true,
+      behaviourWouldRecommend: true,
+      avgPaymentDelayDays: true,
+      abandonedInvoicesCount: true,
+      abandonedInvoicesTotalGbp: true,
+      backChargesAmountGbp: true,
+      variationsNoPaper: true,
+      retentionStatus: true,
+      formalDispute: true,
+      projectReadinessScore: true,
+      contractValueGbp: true,
+      publicArea: true,
+    },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return rows.map((r) => ({
+    createdAt: r.createdAt,
+    paymentScore: r.paymentScore,
+    communicationScore: r.communicationScore,
+    behaviourWouldRecommend: r.behaviourWouldRecommend,
+    avgPaymentDelayDays: r.avgPaymentDelayDays,
+    abandonedInvoicesCount: r.abandonedInvoicesCount,
+    abandonedInvoicesTotalGbp: r.abandonedInvoicesTotalGbp,
+    backChargesAmountGbp: r.backChargesAmountGbp,
+    variationsNoPaper: r.variationsNoPaper,
+    retentionStatus: r.retentionStatus as McReportRow["retentionStatus"],
+    formalDispute: r.formalDispute,
+    projectReadinessScore: r.projectReadinessScore,
+    contractValueGbp: r.contractValueGbp,
+    publicArea: r.publicArea,
+  }));
+}
+
+/** Count of ALL approved (non-admin-only) reports for a CH number, any type. */
+export async function countApprovedReportsForCompany(
+  chNumber: string,
+): Promise<number> {
+  return prisma.riskReport.count({
+    where: {
+      moderationStatus: "APPROVED",
+      visibility: { not: "ADMIN_ONLY" },
+      companiesHouseNumber: chNumber,
+    },
+  });
 }
