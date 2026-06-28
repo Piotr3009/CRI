@@ -9,7 +9,12 @@ import {
 } from "@/lib/supabase/client";
 import { AuthModal, type AuthMode } from "./AuthModal";
 
-export function AuthMenu() {
+export function AuthMenu({
+  variant = "desktop",
+}: {
+  variant?: "desktop" | "mobile";
+}) {
+  const isMobile = variant === "mobile";
   const router = useRouter();
   const [email, setEmail] = useState<string | null>(null);
   const [ready, setReady] = useState(false);
@@ -34,17 +39,30 @@ export function AuthMenu() {
     return () => sub.subscription.unsubscribe();
   }, []);
 
-  // Not configured yet (e.g. env not set on Vercel) → keep the original CTA.
+  // Not configured yet (e.g. env not set on Vercel) -> keep the original CTA.
   if (!isSupabaseConfigured) {
     return (
-      <Link href="/pricing" className="btn-primary">
+      <Link
+        href="/pricing"
+        className={
+          isMobile
+            ? "mt-1 flex w-full items-center justify-center rounded-lg bg-cri-green px-3 py-2 text-sm font-semibold text-white"
+            : "btn-primary"
+        }
+      >
         Join as Verified Contractor
       </Link>
     );
   }
 
   if (!ready) {
-    return <div className="h-10 w-28 animate-pulse rounded-lg bg-black/5" />;
+    return (
+      <div
+        className={`h-10 animate-pulse rounded-lg bg-black/5 ${
+          isMobile ? "w-full" : "w-28"
+        }`}
+      />
+    );
   }
 
   async function handleLogout() {
@@ -55,6 +73,20 @@ export function AuthMenu() {
   }
 
   if (email) {
+    if (isMobile) {
+      return (
+        <div className="mt-1 rounded-lg border border-cri-border p-2">
+          <p className="truncate px-1 text-xs text-cri-steel">{email}</p>
+          <button
+            type="button"
+            onClick={handleLogout}
+            className="mt-1.5 w-full rounded-lg bg-cri-bg px-3 py-2 text-sm font-medium text-cri-charcoal hover:bg-black/5"
+          >
+            Log out
+          </button>
+        </div>
+      );
+    }
     return (
       <div className="relative">
         <button
@@ -90,17 +122,17 @@ export function AuthMenu() {
 
   return (
     <>
-      <div className="flex items-center gap-2">
+      <div className={isMobile ? "flex flex-col gap-2" : "flex items-center gap-2"}>
         <button
           type="button"
-          className="btn-ghost"
+          className={isMobile ? "btn-secondary w-full" : "btn-ghost"}
           onClick={() => setModalMode("login")}
         >
           Log in
         </button>
         <button
           type="button"
-          className="btn-primary"
+          className={isMobile ? "btn-primary w-full" : "btn-primary"}
           onClick={() => setModalMode("signup")}
         >
           Sign up

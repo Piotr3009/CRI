@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ShieldIcon, ArrowRightIcon } from "./Icons";
+import { ShieldIcon } from "./Icons";
 import { AuthMenu } from "./auth/AuthMenu";
 
 const NAV_LINKS = [
@@ -75,13 +75,9 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
-            <Link
-              href="/pricing"
-              className="mt-1 flex items-center justify-center gap-1.5 rounded-lg bg-cri-green px-3 py-2 text-sm font-semibold text-white"
-            >
-              Join as Verified Contractor
-              <ArrowRightIcon className="h-4 w-4" />
-            </Link>
+            <div className="mt-1">
+              <AuthMenu variant="mobile" />
+            </div>
           </div>
         </details>
       </div>

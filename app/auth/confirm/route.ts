@@ -14,6 +14,13 @@ export async function GET(request: NextRequest) {
   const tokenHash = searchParams.get("token_hash");
   const type = searchParams.get("type") as EmailOtpType | null;
 
+  // Only allow same-site relative redirects (no open-redirect).
+  const nextParam = searchParams.get("next");
+  const next =
+    nextParam && nextParam.startsWith("/") && !nextParam.startsWith("//")
+      ? nextParam
+      : "/";
+
   if (isSupabaseConfigured && tokenHash && type) {
     const supabase = createSupabaseServerClient();
     const { error } = await supabase.auth.verifyOtp({
@@ -21,7 +28,8 @@ export async function GET(request: NextRequest) {
       token_hash: tokenHash,
     });
     if (!error) {
-      return NextResponse.redirect(`${origin}/?confirmed=1`);
+      const dest = next === "/" ? "/?confirmed=1" : next;
+      return NextResponse.redirect(`${origin}${dest}`);
     }
   }
 

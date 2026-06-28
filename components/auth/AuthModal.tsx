@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 
-export type AuthMode = "login" | "signup";
+export type AuthMode = "login" | "signup" | "forgot";
 
 export function AuthModal({
   mode,
@@ -17,6 +17,7 @@ export function AuthModal({
 }) {
   const router = useRouter();
   const isSignup = mode === "signup";
+  const isForgot = mode === "forgot";
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,6 +34,7 @@ export function AuthModal({
     if (!email.trim()) return "Enter your email.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       return "Enter a valid email.";
+    if (isForgot) return null;
     if (password.length < 8) return "Password must be at least 8 characters.";
     if (isSignup) {
       if (!companyName.trim()) return "Enter your company name.";
@@ -53,7 +55,19 @@ export function AuthModal({
     const supabase = createSupabaseBrowserClient();
 
     try {
-      if (isSignup) {
+      if (isForgot) {
+        const { error: err } = await supabase.auth.resetPasswordForEmail(
+          email.trim(),
+          { redirectTo: `${window.location.origin}/auth/confirm?next=/auth/reset` },
+        );
+        if (err) {
+          setError(err.message);
+          setSubmitting(false);
+          return;
+        }
+        setSentTo(email.trim());
+        setSubmitting(false);
+      } else if (isSignup) {
         const { error: err } = await supabase.auth.signUp({
           email: email.trim(),
           password,
@@ -108,9 +122,11 @@ export function AuthModal({
               Check your email
             </h2>
             <p className="mt-2 text-sm text-cri-steel">
-              We sent a confirmation link to{" "}
+              We sent {isForgot ? "a password reset" : "a confirmation"} link to{" "}
               <span className="font-medium text-cri-charcoal">{sentTo}</span>.
-              Click it to activate your account, then log in.
+              {isForgot
+                ? " Click it to set a new password."
+                : " Click it to activate your account, then log in."}
             </p>
             <button className="btn-primary mt-5 w-full" onClick={onClose}>
               Done
@@ -120,7 +136,11 @@ export function AuthModal({
           <>
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-bold text-cri-charcoal">
-                {isSignup ? "Create your account" : "Log in"}
+                {isSignup
+                  ? "Create your account"
+                  : isForgot
+                    ? "Reset your password"
+                    : "Log in"}
               </h2>
               <button
                 type="button"
@@ -147,6 +167,12 @@ export function AuthModal({
                 are never shown publicly.
               </p>
             )}
+            {isForgot && (
+              <p className="mt-1 text-xs text-cri-steel">
+                Enter your email and we&apos;ll send you a link to set a new
+                password.
+              </p>
+            )}
 
             <div className="mt-4 space-y-3">
               <div>
@@ -158,16 +184,30 @@ export function AuthModal({
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <div>
-                <label className="label">Password</label>
-                <input
-                  type="password"
-                  className="input"
-                  placeholder={isSignup ? "At least 8 characters" : undefined}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-              </div>
+              {!isForgot && (
+                <div>
+                  <label className="label">Password</label>
+                  <input
+                    type="password"
+                    className="input"
+                    placeholder={isSignup ? "At least 8 characters" : undefined}
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                  />
+                  {mode === "login" && (
+                    <button
+                      type="button"
+                      className="mt-1.5 text-xs font-medium text-cri-green hover:underline"
+                      onClick={() => {
+                        setError(null);
+                        onSwitchMode("forgot");
+                      }}
+                    >
+                      Forgot password?
+                    </button>
+                  )}
+                </div>
+              )}
 
               {isSignup && (
                 <>
@@ -231,7 +271,9 @@ export function AuthModal({
                 ? "Please wait…"
                 : isSignup
                   ? "Create account"
-                  : "Log in"}
+                  : isForgot
+                    ? "Send reset link"
+                    : "Log in"}
             </button>
 
             <p className="mt-4 text-center text-sm text-cri-steel">
@@ -247,6 +289,20 @@ export function AuthModal({
                     }}
                   >
                     Log in
+                  </button>
+                </>
+              ) : isForgot ? (
+                <>
+                  Remembered it?{" "}
+                  <button
+                    type="button"
+                    className="font-semibold text-cri-green hover:underline"
+                    onClick={() => {
+                      setError(null);
+                      onSwitchMode("login");
+                    }}
+                  >
+                    Back to log in
                   </button>
                 </>
               ) : (
