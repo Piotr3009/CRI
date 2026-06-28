@@ -153,7 +153,15 @@ export function CompanyReport({
           {/* Contractor reviews */}
           <SectionTitle>Contractor reviews</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2">
-            <Speedometer label="Payment score" value={has ? a.paymentReliability : null} />
+            <Speedometer
+              label="Payment score"
+              value={has ? a.paymentReliability : null}
+              footnote={
+                has && a.totalPayments > 0
+                  ? `Based on ${a.totalPayments} payment${a.totalPayments === 1 ? "" : "s"} from ${n} subcontractor${n === 1 ? "" : "s"} · ${a.avgPaymentDelayDays === 0 ? "all on time" : `avg ${a.avgPaymentDelayDays} days late`}`
+                  : undefined
+              }
+            />
             <Speedometer label="Communication" value={has ? a.communication : null} />
           </div>
           <div className="mt-3 flex flex-wrap gap-2">

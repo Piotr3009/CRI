@@ -3,6 +3,7 @@
 import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createRiskReport } from "@/lib/reports";
+import { scoreFromDelay } from "@/lib/level2/mainContractor";
 
 // ---------------------------------------------------------------------------
 // Shared validation pieces — all client input is untrusted (Zod re-validates).
@@ -162,15 +163,6 @@ export type SubmitState = { ok: boolean; formError?: string };
 // ---------------------------------------------------------------------------
 
 type Tri = "YES" | "SOMETIMES" | "NO";
-
-/** Average payment delay (days) -> score. Never 0 — 0 would read as a verdict. */
-function scoreFromDelay(avgDays: number): number {
-  if (avgDays <= 3) return 10;
-  if (avgDays <= 7) return 7;
-  if (avgDays <= 14) return 5;
-  if (avgDays <= 21) return 3;
-  return 1; // 22+ days
-}
 
 /** "Communication smooth?" is a positive question -> YES is good. */
 function commScoreFromAnswer(a: Tri): number {

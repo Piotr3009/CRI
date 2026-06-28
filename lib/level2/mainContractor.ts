@@ -31,6 +31,8 @@ export type McReportRow = {
   communicationScore: number; // 0–10 (Level-1, from commScoreFromAnswer)
   behaviourWouldRecommend: Tri | null;
   avgPaymentDelayDays: number | null;
+  paymentCount: number; // number of individual payments listed in this report
+  paymentDelaySum: number; // sum of daysLate across this report's payments
   abandonedInvoicesCount: number | null;
   abandonedInvoicesTotalGbp: number | null;
   backChargesAmountGbp: number | null;
@@ -57,6 +59,7 @@ export type McAggregate = {
 
   // Raw, un-smoothed facts.
   avgPaymentDelayDays: number | null;
+  totalPayments: number; // pooled count of every individual payment across all reports
   reportsPaidLate: number;
   abandonedInvoicesReports: number;
   abandonedInvoicesTotalGbp: number;
@@ -81,6 +84,31 @@ export function bayesianScore(scores: number[]): number {
   return Math.round(value * 10) / 10;
 }
 
+/**
+ * Average payment delay (days) -> 0–10 score. Never 0 — 0 would read as a
+ * verdict. Single source of truth: used at submit time (per report) AND by the
+ * aggregate (on the pooled average). Thresholds are a product decision.
+ */
+export function scoreFromDelay(avgDays: number): number {
+  if (avgDays <= 3) return 10;
+  if (avgDays <= 7) return 7;
+  if (avgDays <= 14) return 5;
+  if (avgDays <= 21) return 3;
+  return 1; // 22+ days
+}
+
+/**
+ * Smooth a raw 0–10 score toward the neutral prior (5) with a strength of
+ * PRIOR_STRENGTH "virtual payments", weighted by how many real payments back it.
+ * At evidence=0 -> 5.0; the prior is meaningful at a handful of payments and
+ * vanishes by the hundreds (e.g. 300 payments ≈ the raw score).
+ */
+function smoothByEvidence(rawScore: number, evidence: number): number {
+  const value =
+    (PRIOR_STRENGTH * PRIOR_MEAN + evidence * rawScore) / (PRIOR_STRENGTH + evidence);
+  return Math.round(value * 10) / 10;
+}
+
 function mean(values: number[]): number | null {
   if (values.length === 0) return null;
   return values.reduce((a, b) => a + b, 0) / values.length;
@@ -89,7 +117,6 @@ function mean(values: number[]): number | null {
 export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
   const n = rows.length;
 
-  const paymentReliability = bayesianScore(rows.map((r) => r.paymentScore));
   const communication = bayesianScore(rows.map((r) => r.communicationScore));
   const projectReadiness = bayesianScore(
     rows.filter((r) => r.projectReadinessScore != null).map((r) => r.projectReadinessScore as number),
@@ -105,10 +132,27 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
             100,
         );
 
-  // Payment delay — mean of the per-report averages that exist.
-  const delays = rows.map((r) => r.avgPaymentDelayDays).filter((d): d is number => d != null);
-  const avgDelayMean = mean(delays);
-  const avgPaymentDelayDays = avgDelayMean == null ? null : Math.round(avgDelayMean * 10) / 10;
+  // Payment delay — POOLED across every individual approved payment: total days
+  // late / total payments. Hard, verifiable math (each payment is certified by a
+  // QS or a written authorisation), so the average defends itself legally and
+  // there is no disputed relationship to discount.
+  const totalPayments = rows.reduce((sum, r) => sum + r.paymentCount, 0);
+  const totalDelaySum = rows.reduce((sum, r) => sum + r.paymentDelaySum, 0);
+  const avgPaymentDelayDays =
+    totalPayments > 0 ? Math.round((totalDelaySum / totalPayments) * 10) / 10 : null;
+
+  // Payment SCORE — the pooled average delay mapped via scoreFromDelay, then
+  // smoothed toward the neutral prior by payment count. Each approved payment
+  // counts once, so the volume of late payments to a single subcontractor does
+  // pull the score (fair, since payments are verifiable facts, not opinions).
+  // The prior (3 virtual payments at 5/10) cushions a verdict at a handful of
+  // payments and is negligible by the hundreds. Display + verdict use the same
+  // pooled figure, so the gauge and the line beneath it agree.
+  const paymentReliability =
+    avgPaymentDelayDays == null
+      ? PRIOR_MEAN
+      : smoothByEvidence(scoreFromDelay(avgPaymentDelayDays), totalPayments);
+
   const reportsPaidLate = rows.filter((r) => (r.avgPaymentDelayDays ?? 0) > 0).length;
 
   const abandonedInvoicesReports = rows.filter((r) => (r.abandonedInvoicesCount ?? 0) > 0).length;
@@ -147,6 +191,7 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
     projectReadiness,
     wouldWorkAgainPct,
     avgPaymentDelayDays,
+    totalPayments,
     reportsPaidLate,
     abandonedInvoicesReports,
     abandonedInvoicesTotalGbp,

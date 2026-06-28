@@ -263,6 +263,7 @@ export async function getMainContractorReportRows(
       projectReadinessScore: true,
       contractValueGbp: true,
       publicArea: true,
+      payments: { select: { daysLate: true } },
     },
     orderBy: { createdAt: "desc" },
   });
@@ -282,6 +283,8 @@ export async function getMainContractorReportRows(
     projectReadinessScore: r.projectReadinessScore,
     contractValueGbp: r.contractValueGbp,
     publicArea: r.publicArea,
+    paymentCount: r.payments.length,
+    paymentDelaySum: r.payments.reduce((sum, p) => sum + p.daysLate, 0),
   }));
 }
 

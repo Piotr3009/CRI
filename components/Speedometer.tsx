@@ -25,10 +25,12 @@ export function Speedometer({
   label,
   value,
   icon,
+  footnote,
 }: {
   label: string;
   value: number | null; // 0–10 or null (no data)
   icon?: string;
+  footnote?: string; // small descriptive line under the value (e.g. payment depth)
 }) {
   const v = value ?? 5;
   const tip = polar(v, R - 14);
@@ -69,6 +71,9 @@ export function Speedometer({
       ) : (
         <p className="-mt-1 text-sm font-medium text-cri-steel">No record yet</p>
       )}
+      {footnote ? (
+        <p className="mt-1 text-[11px] leading-snug text-cri-steel">{footnote}</p>
+      ) : null}
     </div>
   );
 }
