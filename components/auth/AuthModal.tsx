@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
+import { Modal } from "@/components/ui/Modal";
 
 export type AuthMode = "login" | "signup" | "forgot";
 
@@ -29,6 +30,14 @@ export function AuthModal({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+
+  const title = sentTo
+    ? "Check your email"
+    : isSignup
+      ? "Create your account"
+      : isForgot
+        ? "Reset your password"
+        : "Log in";
 
   function validate(): string | null {
     if (!email.trim()) return "Enter your email.";
@@ -108,222 +117,184 @@ export function AuthModal({
   }
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
-      onClick={onClose}
-    >
-      <div
-        className="card w-full max-w-md p-6 shadow-card-hover"
-        onClick={(e) => e.stopPropagation()}
-      >
-        {sentTo ? (
-          <div className="text-center">
-            <h2 className="text-lg font-bold text-cri-charcoal">
-              Check your email
-            </h2>
-            <p className="mt-2 text-sm text-cri-steel">
-              We sent {isForgot ? "a password reset" : "a confirmation"} link to{" "}
-              <span className="font-medium text-cri-charcoal">{sentTo}</span>.
-              {isForgot
-                ? " Click it to set a new password."
-                : " Click it to activate your account, then log in."}
+    <Modal title={title} onClose={onClose}>
+      {sentTo ? (
+        <div className="text-center">
+          <p className="text-sm text-cri-steel">
+            We sent {isForgot ? "a password reset" : "a confirmation"} link to{" "}
+            <span className="font-medium text-cri-charcoal">{sentTo}</span>.
+            {isForgot
+              ? " Click it to set a new password."
+              : " Click it to activate your account, then log in."}
+          </p>
+          <button className="btn-primary mt-5 w-full" onClick={onClose}>
+            Done
+          </button>
+        </div>
+      ) : (
+        <>
+          {isSignup && (
+            <p className="text-xs text-cri-steel">
+              You report facts about companies — your details stay private and
+              are never shown publicly.
             </p>
-            <button className="btn-primary mt-5 w-full" onClick={onClose}>
-              Done
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-bold text-cri-charcoal">
-                {isSignup
-                  ? "Create your account"
-                  : isForgot
-                    ? "Reset your password"
-                    : "Log in"}
-              </h2>
-              <button
-                type="button"
-                onClick={onClose}
-                aria-label="Close"
-                className="rounded-lg p-1 text-cri-steel hover:bg-black/5"
-              >
-                <svg
-                  className="h-5 w-5"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.8"
-                  strokeLinecap="round"
-                >
-                  <path d="M6 6l12 12M18 6L6 18" />
-                </svg>
-              </button>
+          )}
+          {isForgot && (
+            <p className="text-xs text-cri-steel">
+              Enter your email and we&apos;ll send you a link to set a new
+              password.
+            </p>
+          )}
+
+          <div className="mt-4 space-y-3">
+            <div>
+              <label className="label">Email</label>
+              <input
+                type="email"
+                className="input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+              />
             </div>
+            {!isForgot && (
+              <div>
+                <label className="label">Password</label>
+                <input
+                  type="password"
+                  className="input"
+                  placeholder={isSignup ? "At least 8 characters" : undefined}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+                {mode === "login" && (
+                  <button
+                    type="button"
+                    className="mt-1.5 text-xs font-medium text-cri-green hover:underline"
+                    onClick={() => {
+                      setError(null);
+                      onSwitchMode("forgot");
+                    }}
+                  >
+                    Forgot password?
+                  </button>
+                )}
+              </div>
+            )}
 
             {isSignup && (
-              <p className="mt-1 text-xs text-cri-steel">
-                You report facts about companies — your details stay private and
-                are never shown publicly.
-              </p>
-            )}
-            {isForgot && (
-              <p className="mt-1 text-xs text-cri-steel">
-                Enter your email and we&apos;ll send you a link to set a new
-                password.
-              </p>
-            )}
-
-            <div className="mt-4 space-y-3">
-              <div>
-                <label className="label">Email</label>
-                <input
-                  type="email"
-                  className="input"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                />
-              </div>
-              {!isForgot && (
+              <>
                 <div>
-                  <label className="label">Password</label>
+                  <label className="label">Company name</label>
                   <input
-                    type="password"
                     className="input"
-                    placeholder={isSignup ? "At least 8 characters" : undefined}
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="e.g. ABC Electrical Ltd"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
                   />
-                  {mode === "login" && (
-                    <button
-                      type="button"
-                      className="mt-1.5 text-xs font-medium text-cri-green hover:underline"
-                      onClick={() => {
-                        setError(null);
-                        onSwitchMode("forgot");
-                      }}
-                    >
-                      Forgot password?
-                    </button>
-                  )}
                 </div>
-              )}
-
-              {isSignup && (
-                <>
-                  <div>
-                    <label className="label">Company name</label>
-                    <input
-                      className="input"
-                      placeholder="e.g. ABC Electrical Ltd"
-                      value={companyName}
-                      onChange={(e) => setCompanyName(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Contact person</label>
-                    <input
-                      className="input"
-                      placeholder="Your name"
-                      value={contactName}
-                      onChange={(e) => setContactName(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="label">Trade type</label>
-                    <input
-                      className="input"
-                      placeholder="e.g. Electrical, Joinery"
-                      value={tradeType}
-                      onChange={(e) => setTradeType(e.target.value)}
-                    />
-                  </div>
-                  <div>
-                    <label className="label">
-                      Companies House number{" "}
-                      <span className="font-normal text-cri-steel">
-                        (optional)
-                      </span>
-                    </label>
-                    <input
-                      className="input"
-                      placeholder="e.g. 01234567 — sole traders can skip"
-                      value={companyNumber}
-                      onChange={(e) => setCompanyNumber(e.target.value)}
-                    />
-                  </div>
-                </>
-              )}
-            </div>
-
-            {error && (
-              <p className="mt-3 rounded-lg bg-cri-amber/10 px-3 py-2 text-sm text-cri-amber-dark">
-                {error}
-              </p>
+                <div>
+                  <label className="label">Contact person</label>
+                  <input
+                    className="input"
+                    placeholder="Your name"
+                    value={contactName}
+                    onChange={(e) => setContactName(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">Trade type</label>
+                  <input
+                    className="input"
+                    placeholder="e.g. Electrical, Joinery"
+                    value={tradeType}
+                    onChange={(e) => setTradeType(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="label">
+                    Companies House number{" "}
+                    <span className="font-normal text-cri-steel">
+                      (optional)
+                    </span>
+                  </label>
+                  <input
+                    className="input"
+                    placeholder="e.g. 01234567 — sole traders can skip"
+                    value={companyNumber}
+                    onChange={(e) => setCompanyNumber(e.target.value)}
+                  />
+                </div>
+              </>
             )}
+          </div>
 
-            <button
-              className="btn-primary mt-5 w-full"
-              disabled={submitting}
-              onClick={handleSubmit}
-            >
-              {submitting
-                ? "Please wait…"
-                : isSignup
-                  ? "Create account"
-                  : isForgot
-                    ? "Send reset link"
-                    : "Log in"}
-            </button>
-
-            <p className="mt-4 text-center text-sm text-cri-steel">
-              {isSignup ? (
-                <>
-                  Already have an account?{" "}
-                  <button
-                    type="button"
-                    className="font-semibold text-cri-green hover:underline"
-                    onClick={() => {
-                      setError(null);
-                      onSwitchMode("login");
-                    }}
-                  >
-                    Log in
-                  </button>
-                </>
-              ) : isForgot ? (
-                <>
-                  Remembered it?{" "}
-                  <button
-                    type="button"
-                    className="font-semibold text-cri-green hover:underline"
-                    onClick={() => {
-                      setError(null);
-                      onSwitchMode("login");
-                    }}
-                  >
-                    Back to log in
-                  </button>
-                </>
-              ) : (
-                <>
-                  No account yet?{" "}
-                  <button
-                    type="button"
-                    className="font-semibold text-cri-green hover:underline"
-                    onClick={() => {
-                      setError(null);
-                      onSwitchMode("signup");
-                    }}
-                  >
-                    Sign up
-                  </button>
-                </>
-              )}
+          {error && (
+            <p className="mt-3 rounded-lg bg-cri-amber/10 px-3 py-2 text-sm text-cri-amber-dark">
+              {error}
             </p>
-          </>
-        )}
-      </div>
-    </div>
+          )}
+
+          <button
+            className="btn-primary mt-5 w-full"
+            disabled={submitting}
+            onClick={handleSubmit}
+          >
+            {submitting
+              ? "Please wait…"
+              : isSignup
+                ? "Create account"
+                : isForgot
+                  ? "Send reset link"
+                  : "Log in"}
+          </button>
+
+          <p className="mt-4 text-center text-sm text-cri-steel">
+            {isSignup ? (
+              <>
+                Already have an account?{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-cri-green hover:underline"
+                  onClick={() => {
+                    setError(null);
+                    onSwitchMode("login");
+                  }}
+                >
+                  Log in
+                </button>
+              </>
+            ) : isForgot ? (
+              <>
+                Remembered it?{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-cri-green hover:underline"
+                  onClick={() => {
+                    setError(null);
+                    onSwitchMode("login");
+                  }}
+                >
+                  Back to log in
+                </button>
+              </>
+            ) : (
+              <>
+                No account yet?{" "}
+                <button
+                  type="button"
+                  className="font-semibold text-cri-green hover:underline"
+                  onClick={() => {
+                    setError(null);
+                    onSwitchMode("signup");
+                  }}
+                >
+                  Sign up
+                </button>
+              </>
+            )}
+          </p>
+        </>
+      )}
+    </Modal>
   );
 }
