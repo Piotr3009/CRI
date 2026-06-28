@@ -16,6 +16,7 @@ import {
   TRADE_TYPE_OPTIONS,
 } from "@/lib/constants";
 import { CompanyAutocomplete } from "@/components/CompanyAutocomplete";
+import { BEHAVIOUR_QUESTIONS, type BehaviourKey } from "@/lib/behaviourQuestions";
 
 // ---------------------------------------------------------------------------
 // Static config
@@ -35,17 +36,6 @@ const TYPE_TILES: TypeTile[] = [
   { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: true },
   { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: true },
   { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: true },
-];
-
-const BEHAVIOUR_QUESTIONS: { key: BehaviourKey; label: string }[] = [
-  { key: "behaviourExtraWorkNoCost", label: "Did the client request additional or changed work without agreeing to the extra cost?" },
-  { key: "behaviourAskedCostUpfront", label: "Did the client ask about the cost before instructing work?" },
-  { key: "behaviourExpectedFreeLogistics", label: "Did the client expect free organisation / logistics (samples, space for other trades, coordination)?" },
-  { key: "behaviourKeptAgreements", label: "Did the client keep to what was agreed?" },
-  { key: "behaviourRespondedOnTime", label: "Did the client respond to questions and decisions within the agreed time?" },
-  { key: "behaviourProvidedAccess", label: "Did the client provide site access as agreed?" },
-  { key: "behaviourCommunicationSmooth", label: "Did cooperation and communication run smoothly?" },
-  { key: "behaviourWouldRecommend", label: "Would you recommend this client to other contractors?" },
 ];
 
 const EVIDENCE_OPTIONS: { value: string; label: string }[] = [
@@ -133,16 +123,6 @@ const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 // ---------------------------------------------------------------------------
 
 type Tri = "YES" | "SOMETIMES" | "NO" | "";
-
-type BehaviourKey =
-  | "behaviourExtraWorkNoCost"
-  | "behaviourAskedCostUpfront"
-  | "behaviourExpectedFreeLogistics"
-  | "behaviourKeptAgreements"
-  | "behaviourRespondedOnTime"
-  | "behaviourProvidedAccess"
-  | "behaviourCommunicationSmooth"
-  | "behaviourWouldRecommend";
 
 type Consents = {
   realExperience: boolean;

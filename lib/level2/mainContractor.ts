@@ -17,9 +17,27 @@
  * These three constants are the tuning knobs — safe to change later.
  */
 
+import type { BehaviourKey } from "@/lib/behaviourQuestions";
+
 export const PRIOR_MEAN = 5;
 export const PRIOR_STRENGTH = 3;
 export const MIN_REPORTS_FOR_RISK = 3;
+
+/**
+ * Ordered behaviour keys. Kept local (not imported as a value) so this engine
+ * stays dependency-free and runnable under --experimental-strip-types.
+ * Keep in sync with lib/behaviourQuestions.ts (BEHAVIOUR_KEYS).
+ */
+const BEHAVIOUR_KEYS: BehaviourKey[] = [
+  "behaviourExtraWorkNoCost",
+  "behaviourAskedCostUpfront",
+  "behaviourExpectedFreeLogistics",
+  "behaviourKeptAgreements",
+  "behaviourRespondedOnTime",
+  "behaviourProvidedAccess",
+  "behaviourCommunicationSmooth",
+  "behaviourWouldRecommend",
+];
 
 export type Tri = "YES" | "SOMETIMES" | "NO";
 export type RetentionStatus = "NOT_RETURNED" | "RETURNED" | "WITHIN_TERM";
@@ -29,6 +47,13 @@ export type McReportRow = {
   createdAt: Date;
   paymentScore: number; // 0–10 (Level-1, from scoreFromDelay)
   communicationScore: number; // 0–10 (Level-1, from commScoreFromAnswer)
+  behaviourExtraWorkNoCost: Tri | null;
+  behaviourAskedCostUpfront: Tri | null;
+  behaviourExpectedFreeLogistics: Tri | null;
+  behaviourKeptAgreements: Tri | null;
+  behaviourRespondedOnTime: Tri | null;
+  behaviourProvidedAccess: Tri | null;
+  behaviourCommunicationSmooth: Tri | null;
   behaviourWouldRecommend: Tri | null;
   avgPaymentDelayDays: number | null;
   paymentCount: number; // number of individual payments listed in this report
@@ -53,6 +78,11 @@ export type McAggregate = {
   paymentReliability: number;
   communication: number;
   projectReadiness: number; // also smoothed; 5.0 at n=0
+
+  // Behaviour: each question is a Bayesian-smoothed 0–10 gauge; the headline
+  // `behaviour` gauge is the plain average of those 8 per-question gauges.
+  behaviour: number;
+  behaviourByQuestion: Record<BehaviourKey, number>;
 
   // Proportion 0–100, or null when nobody answered.
   wouldWorkAgainPct: number | null;
@@ -82,6 +112,17 @@ export function bayesianScore(scores: number[]): number {
   const sum = scores.reduce((acc, s) => acc + s, 0);
   const value = (PRIOR_STRENGTH * PRIOR_MEAN + sum) / (PRIOR_STRENGTH + scores.length);
   return Math.round(value * 10) / 10;
+}
+
+/**
+ * Behaviour answer -> 0–10. Every behaviour question is phrased so YES is good
+ * (see lib/behaviourQuestions.ts), so the mapping is uniform: no reverse-scored
+ * questions, nothing to invert.
+ */
+export function behaviourScoreFromAnswer(a: Tri): number {
+  if (a === "YES") return 10;
+  if (a === "SOMETIMES") return 5;
+  return 1;
 }
 
 /**
@@ -121,6 +162,22 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
   const projectReadiness = bayesianScore(
     rows.filter((r) => r.projectReadinessScore != null).map((r) => r.projectReadinessScore as number),
   );
+
+  // Behaviour — one Bayesian gauge per question (YES/SOMETIMES/NO -> 10/5/1),
+  // then the headline behaviour gauge is the plain average of those 8 gauges
+  // (same as "per-client sum/8 then average", with the 5/10 prior applied per
+  // question). Each gauge sits at 5.0 when nobody has answered it.
+  const behaviourByQuestion = BEHAVIOUR_KEYS.reduce((acc, key) => {
+    const scores = rows
+      .map((r) => r[key])
+      .filter((a): a is Tri => a != null)
+      .map(behaviourScoreFromAnswer);
+    acc[key] = bayesianScore(scores);
+    return acc;
+  }, {} as Record<BehaviourKey, number>);
+  const behaviourValues = BEHAVIOUR_KEYS.map((k) => behaviourByQuestion[k]);
+  const behaviour =
+    Math.round((behaviourValues.reduce((a, b) => a + b, 0) / behaviourValues.length) * 10) / 10;
 
   // Would work again — only rows that actually answered count.
   const answered = rows.filter((r) => r.behaviourWouldRecommend != null);
@@ -189,6 +246,8 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
     paymentReliability,
     communication,
     projectReadiness,
+    behaviour,
+    behaviourByQuestion,
     wouldWorkAgainPct,
     avgPaymentDelayDays,
     totalPayments,

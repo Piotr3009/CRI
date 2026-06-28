@@ -26,23 +26,26 @@ export function Speedometer({
   value,
   icon,
   footnote,
+  size = "md",
 }: {
   label: string;
   value: number | null; // 0–10 or null (no data)
   icon?: string;
   footnote?: string; // small descriptive line under the value (e.g. payment depth)
+  size?: "sm" | "md";
 }) {
   const v = value ?? 5;
   const tip = polar(v, R - 14);
   const hasData = value != null;
+  const sm = size === "sm";
 
   return (
-    <div className="rounded-xl border border-cri-border bg-cri-bg/60 p-4 text-center">
-      <p className="mb-1 text-xs font-medium text-cri-steel">
+    <div className={`rounded-xl border border-cri-border bg-cri-bg/60 text-center ${sm ? "p-3" : "p-4"}`}>
+      <p className={`mb-1 font-medium text-cri-steel ${sm ? "text-[11px] leading-tight" : "text-xs"}`}>
         {icon ? <span className="mr-1">{icon}</span> : null}
         {label}
       </p>
-      <svg viewBox="0 0 200 124" className="mx-auto w-full max-w-[200px]" role="img" aria-label={`${label}: ${hasData ? value : "no record yet"}`}>
+      <svg viewBox="0 0 200 124" className={`mx-auto w-full ${sm ? "max-w-[116px]" : "max-w-[200px]"}`} role="img" aria-label={`${label}: ${hasData ? value : "no record yet"}`}>
         {hasData ? (
           <>
             <path d={arc(0, 4)} fill="none" stroke="#D64545" strokeWidth="13" strokeLinecap="round" />
@@ -64,12 +67,12 @@ export function Speedometer({
         <circle cx={CX} cy={CY} r="6" fill={hasData ? "#1F2933" : "#9CA3AF"} />
       </svg>
       {hasData ? (
-        <p className="-mt-1 text-2xl font-bold text-cri-charcoal">
+        <p className={`-mt-1 font-bold text-cri-charcoal ${sm ? "text-lg" : "text-2xl"}`}>
           {value!.toFixed(1)}
-          <span className="text-sm font-normal text-cri-steel">/10</span>
+          <span className={`font-normal text-cri-steel ${sm ? "text-xs" : "text-sm"}`}>/10</span>
         </p>
       ) : (
-        <p className="-mt-1 text-sm font-medium text-cri-steel">No record yet</p>
+        <p className={`-mt-1 font-medium text-cri-steel ${sm ? "text-xs" : "text-sm"}`}>No record yet</p>
       )}
       {footnote ? (
         <p className="mt-1 text-[11px] leading-snug text-cri-steel">{footnote}</p>

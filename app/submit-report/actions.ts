@@ -171,11 +171,11 @@ function commScoreFromAnswer(a: Tri): number {
   return 1;
 }
 
-/** "Extra work without approved cost?" -> YES is bad. */
+/** "Agreed extra costs before requesting more work?" -> YES is good (low risk). */
 function variationRiskFromAnswer(a: Tri): "LOW" | "MEDIUM" | "HIGH" {
-  if (a === "YES") return "HIGH";
+  if (a === "YES") return "LOW";
   if (a === "SOMETIMES") return "MEDIUM";
-  return "LOW";
+  return "HIGH";
 }
 
 /** Outward code from a UK postcode, e.g. "SW19 3AB" -> "SW19". */
@@ -202,11 +202,14 @@ function commonComputed(d: CommonInput) {
   const finishDate =
     parsedFinish && !Number.isNaN(parsedFinish.getTime()) ? parsedFinish : null;
 
+  // extrasRequestedWithoutApprovedCost is the INVERSE of the (now positive)
+  // "agreed extra costs before requesting more work?" answer: YES (agreed) means
+  // extras were NOT requested without cost.
   const extras: "YES" | "NO" | "NOT_SURE" =
     d.behaviourExtraWorkNoCost === "YES"
-      ? "YES"
+      ? "NO"
       : d.behaviourExtraWorkNoCost === "NO"
-        ? "NO"
+        ? "YES"
         : "NOT_SURE";
 
   return {

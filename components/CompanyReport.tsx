@@ -6,6 +6,7 @@ import { RiskBadge } from "./RiskBadge";
 import { Speedometer } from "./Speedometer";
 import { AtomGraphic } from "./AtomGraphic";
 import type { McAggregate } from "@/lib/level2/mainContractor";
+import { BEHAVIOUR_QUESTIONS } from "@/lib/behaviourQuestions";
 import type { CompanyFacts } from "@/lib/companiesHouse";
 import type { CompanyAtom } from "@/lib/level2/atom";
 
@@ -101,7 +102,6 @@ export function CompanyReport({
       ? "text-cri-green"
       : "text-cri-amber-dark";
 
-  const variation: RiskLevel | null = has ? level(a.variationsNoPaperReports / n, 0.4, 0.15) : null;
   const dispute: RiskLevel | null = has ? level(a.formalDisputeReports / n, 0.3, 0.1) : null;
 
   return (
@@ -162,11 +162,15 @@ export function CompanyReport({
                   : undefined
               }
             />
-            <Speedometer label="Communication" value={has ? a.communication : null} />
-          </div>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {variation ? <RiskBadge level={variation} label="Variation" /> : <NoRecordPill />}
-            {dispute ? <RiskBadge level={dispute} label="Dispute" /> : <NoRecordPill />}
+            <Speedometer
+              label="Behaviour"
+              value={has ? a.behaviour : null}
+              footnote={
+                has && a.wouldWorkAgainPct != null
+                  ? `${a.wouldWorkAgainPct}% would work with this client again`
+                  : undefined
+              }
+            />
           </div>
           <p className="mt-2 flex gap-1.5 text-xs text-cri-steel">
             <span aria-hidden>ⓘ</span>
@@ -175,6 +179,29 @@ export function CompanyReport({
                 ? `Based on ${n} report${n === 1 ? "" : "s"} · contractor-submitted, not CIX's opinion. Scores use a neutral 5/10 baseline a single report can't swing.`
                 : "No reviews yet — this is the report a buyer sees once contractors submit. Scores will fill in as reports arrive."}
             </span>
+          </p>
+
+          {/* Behaviour detail — one gauge per question; the average of these is the Behaviour gauge above */}
+          <SectionTitle>Behaviour detail</SectionTitle>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            {BEHAVIOUR_QUESTIONS.map((q) => (
+              <Speedometer
+                key={q.key}
+                size="sm"
+                label={q.gaugeLabel}
+                value={has ? a.behaviourByQuestion[q.key] : null}
+              />
+            ))}
+          </div>
+
+          {/* Site readiness — about the site/project, separate from client behaviour and not in the behaviour average */}
+          <SectionTitle>Site readiness</SectionTitle>
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <Speedometer size="sm" label="Site readiness" value={has ? a.projectReadiness : null} />
+          </div>
+          <p className="mt-1.5 flex gap-1.5 text-xs text-cri-steel">
+            <span aria-hidden>ⓘ</span>
+            <span>Whether the site/project was ready for the contractor&apos;s stage — separate from how the client behaved.</span>
           </p>
 
           {/* Full breakdown — always shown */}
@@ -195,6 +222,9 @@ export function CompanyReport({
           <Row label="Variations without paperwork" value={has ? pctOf(a.variationsNoPaperReports, n) : "No record yet"} />
 
           <SectionTitle>Disputes</SectionTitle>
+          <div className="mb-2">
+            {dispute ? <RiskBadge level={dispute} label="Dispute risk" /> : <NoRecordPill />}
+          </div>
           <Row label="Formal dispute raised" value={has ? pctOf(a.formalDisputeReports, n) : "No record yet"} />
           <Row label="Contract value range" value={has && a.contractValueMinGbp != null ? `${gbp(a.contractValueMinGbp)} – ${gbp(a.contractValueMaxGbp)}` : "No record yet"} />
           <Row label="Project areas" value={has && a.areas.length ? a.areas.join(" · ") : "No record yet"} />

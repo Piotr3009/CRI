@@ -14,6 +14,7 @@ import {
 } from "@/lib/constants";
 import { formatDate, formatCurrencyGBP } from "@/lib/format";
 import { calculateOverallRisk, isResidentialEntity } from "@/lib/privacy";
+import { BEHAVIOUR_QUESTIONS, BEHAVIOUR_ANSWER_LABELS } from "@/lib/behaviourQuestions";
 import {
   moderateAction,
   setEvidenceStatusAction,
@@ -250,6 +251,25 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
             {report.formalDispute
               ? YES_NO_UNSURE_LABELS[report.formalDispute]
               : "—"}
+          </Row>
+        </dl>
+      </div>
+
+      {/* Behaviour — raw answers (same questions the public report averages) */}
+      <div className="card p-6 shadow-card">
+        <h2 className="text-base font-semibold text-cri-charcoal">Behaviour</h2>
+        <p className="mt-1 text-xs text-cri-steel">
+          This reporter&apos;s raw answers. The public report shows the average of
+          these (as gauges) across all reports for the company.
+        </p>
+        <dl className="mt-3">
+          {BEHAVIOUR_QUESTIONS.map((q) => (
+            <Row key={q.key} label={q.label}>
+              {report[q.key] ? BEHAVIOUR_ANSWER_LABELS[report[q.key]!] : "—"}
+            </Row>
+          ))}
+          <Row label="Site ready for their stage (1–10)">
+            {report.projectReadinessScore ?? "—"}
           </Row>
         </dl>
       </div>
