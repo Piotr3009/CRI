@@ -166,7 +166,11 @@ export async function getAdminReports(status?: ModerationStatus) {
 export async function getAdminReportById(id: string) {
   return prisma.riskReport.findUnique({
     where: { id },
-    include: { evidence: true, rightToReplies: true },
+    include: {
+      evidence: true,
+      rightToReplies: true,
+      payments: { orderBy: { position: "asc" } },
+    },
   });
 }
 

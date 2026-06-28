@@ -1,10 +1,9 @@
 import type { ReactNode } from "react";
-import type { Evidence, RightToReply, RiskReport } from "@prisma/client";
+import type { Evidence, Payment, RightToReply, RiskReport } from "@prisma/client";
 import {
   ENTITY_TYPE_LABELS,
   PROJECT_TYPE_LABELS,
   PROJECT_STATUS_LABELS,
-  RESPONSE_TIME_LABELS,
   EVIDENCE_STATUS_LABELS,
   VISIBILITY_LABELS,
   MODERATION_STATUS_LABELS,
@@ -26,9 +25,16 @@ import { EvidenceBadge } from "./EvidenceBadge";
 import { VisibilityBadge } from "./VisibilityBadge";
 import { LockIcon } from "./Icons";
 
+const RETENTION_STATUS_LABELS: Record<string, string> = {
+  NOT_RETURNED: "Not returned",
+  RETURNED: "Returned",
+  WITHIN_TERM: "Still within term",
+};
+
 type FullReport = RiskReport & {
   evidence: Evidence[];
   rightToReplies: RightToReply[];
+  payments: Payment[];
 };
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -44,6 +50,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 export function AdminReportDetail({ report }: { report: FullReport }) {
   const residential = isResidentialEntity(report);
+  const isMC = report.entityType === "MAIN_CONTRACTOR";
   const evidenceOptions = optionsFromLabels(EVIDENCE_STATUS_LABELS);
   const visibilityOptions = optionsFromLabels(VISIBILITY_LABELS);
 
@@ -217,35 +224,8 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
         </h2>
         <dl className="mt-3">
           <Row label="Payment Score">{report.paymentScore.toFixed(1)} / 10</Row>
-          <Row label="Communication Score">
-            {report.communicationScore.toFixed(1)} / 10
-          </Row>
-          <Row label="Variation Risk">
-            <RiskBadge level={report.variationRisk} />
-          </Row>
           <Row label="Dispute Risk">
             <RiskBadge level={report.disputeRisk} />
-          </Row>
-          <Row label="Average response time">
-            {report.averageResponseTime
-              ? RESPONSE_TIME_LABELS[report.averageResponseTime]
-              : "—"}
-          </Row>
-          <Row label="Extras without approved cost">
-            {report.extrasRequestedWithoutApprovedCost
-              ? YES_NO_UNSURE_LABELS[report.extrasRequestedWithoutApprovedCost]
-              : "—"}
-          </Row>
-          <Row label="Payment late">
-            {report.paymentLate
-              ? YES_NO_UNSURE_LABELS[report.paymentLate]
-              : "—"}
-          </Row>
-          <Row label="Payment delay (days)">
-            {report.paymentDelayDays ?? "—"}
-          </Row>
-          <Row label="Amount unpaid">
-            {formatCurrencyGBP(report.amountUnpaid) ?? "—"}
           </Row>
           <Row label="Formal dispute / legal action">
             {report.formalDispute
@@ -268,11 +248,90 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
               {report[q.key] ? BEHAVIOUR_ANSWER_LABELS[report[q.key]!] : "—"}
             </Row>
           ))}
-          <Row label="Site ready for their stage (1–10)">
-            {report.projectReadinessScore ?? "—"}
-          </Row>
         </dl>
       </div>
+
+      {/* Payments — per-payment list (paying report types; SPs have none) */}
+      {report.payments.length > 0 ? (
+        <div className="card p-6 shadow-card">
+          <h2 className="text-base font-semibold text-cri-charcoal">
+            Payments ({report.payments.length})
+          </h2>
+          <div className="mt-3 overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-cri-border text-left text-cri-steel">
+                  <th className="py-2 pr-4 font-medium">#</th>
+                  <th className="py-2 pr-4 font-medium">Days late</th>
+                  <th className="py-2 font-medium">Amount</th>
+                </tr>
+              </thead>
+              <tbody>
+                {report.payments.map((p) => (
+                  <tr key={p.id} className="border-b border-cri-border last:border-0">
+                    <td className="py-2 pr-4 text-cri-charcoal">{p.position}</td>
+                    <td className="py-2 pr-4 font-medium text-cri-charcoal">
+                      {p.daysLate}
+                    </td>
+                    <td className="py-2 text-cri-charcoal">
+                      {formatCurrencyGBP(p.amountGbp) ?? "—"}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <dl className="mt-4">
+            <Row label="Average payment delay">
+              {report.avgPaymentDelayDays != null
+                ? `${report.avgPaymentDelayDays} days`
+                : "—"}
+            </Row>
+            <Row label="Abandoned invoices (>60 days)">
+              {report.abandonedInvoicesCount != null
+                ? `${report.abandonedInvoicesCount} · ${formatCurrencyGBP(report.abandonedInvoicesTotalGbp) ?? "—"}`
+                : "—"}
+            </Row>
+          </dl>
+        </div>
+      ) : null}
+
+      {/* Chain issues — MAIN_CONTRACTOR specifics */}
+      {isMC ? (
+        <div className="card p-6 shadow-card">
+          <h2 className="text-base font-semibold text-cri-charcoal">Chain issues</h2>
+          <p className="mt-1 text-xs text-cri-steel">
+            Main-contractor specifics (chain disputes).
+          </p>
+          <dl className="mt-3">
+            <Row label="Back-charges for unagreed defects">
+              {report.backChargesUnagreed
+                ? BEHAVIOUR_ANSWER_LABELS[report.backChargesUnagreed]
+                : "—"}
+            </Row>
+            <Row label="Amount deducted">
+              {formatCurrencyGBP(report.backChargesAmountGbp) ?? "—"}
+            </Row>
+            <Row label="Oral variations, paperwork refused">
+              {report.variationsNoPaper
+                ? BEHAVIOUR_ANSWER_LABELS[report.variationsNoPaper]
+                : "—"}
+            </Row>
+            <Row label="Retention">
+              {report.retentionStatus
+                ? (RETENTION_STATUS_LABELS[report.retentionStatus] ??
+                  report.retentionStatus)
+                : "—"}
+            </Row>
+            <Row label="Retention amount">
+              {formatCurrencyGBP(report.retentionAmountGbp) ?? "—"}
+            </Row>
+            <Row label="Site ready for their stage (1–10)">
+              {report.projectReadinessScore ?? "—"}
+            </Row>
+          </dl>
+        </div>
+      ) : null}
 
       {/* Project + private details */}
       <div className="card p-6 shadow-card">
