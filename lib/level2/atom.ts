@@ -70,13 +70,35 @@ export function normName(name: string): string {
     .join(" ");
 }
 
+function personTokens(name: string): Set<string> {
+  return new Set(
+    name
+      .toUpperCase()
+      .replace(/[.,]/g, " ")
+      .split(/\s+/)
+      .filter((t) => t && !TITLES.has(t)),
+  );
+}
+
+/**
+ * Match two person records across Companies House's inconsistent name formats.
+ * The smaller token set must be fully contained in the larger (so "Piotr
+ * Tarasek" matches "Piotr Jan Tarasek"), with at least 2 shared tokens, and the
+ * date of birth must agree when both are present.
+ */
 function samePerson(
   a: { name: string; dob: string },
   b: { name: string; dob: string },
 ): boolean {
-  if (normName(a.name) !== normName(b.name)) return false;
+  const ta = personTokens(a.name);
+  const tb = personTokens(b.name);
+  if (ta.size === 0 || tb.size === 0) return false;
+  const [small, large] = ta.size <= tb.size ? [ta, tb] : [tb, ta];
+  let shared = 0;
+  for (const t of small) if (large.has(t)) shared++;
+  if (shared !== small.size || small.size < 2) return false;
   if (a.dob && b.dob) return a.dob === b.dob;
-  return true; // name match, DOB unknown on one side
+  return true;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -251,14 +273,7 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
       );
       const matchedIds = ((search?.items as OfficerSearchItem[]) ?? [])
         .filter((it) => it.title && it.links?.self)
-        .filter(
-          (it) =>
-            normName(it.title as string) === normName(o.name) &&
-            (() => {
-              const d = dob(it.date_of_birth);
-              return !o.dob || !d || d === o.dob;
-            })(),
-        )
+        .filter((it) => samePerson({ name: it.title as string, dob: dob(it.date_of_birth) }, o))
         .map((it) => extractOfficerId(it.links!.self as string))
         .filter(Boolean);
 
