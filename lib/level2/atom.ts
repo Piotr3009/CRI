@@ -232,6 +232,19 @@ function extractOfficerId(appointmentsPath: string): string {
   return parts[1] ?? "";
 }
 
+/**
+ * Companies House officer names come back as "SURNAME, Forename(s)". The CH
+ * officer SEARCH does not understand that comma/surname-first form and returns
+ * unrelated people, so flip it to "Forename(s) Surname" before querying.
+ */
+function searchableName(raw: string): string {
+  if (raw.includes(",")) {
+    const [sur, ...rest] = raw.split(",");
+    return `${rest.join(" ").trim()} ${sur.trim()}`.trim();
+  }
+  return raw.trim();
+}
+
 export async function buildCompanyAtom(number: string): Promise<CompanyAtom | null> {
   const key = process.env.COMPANIES_HOUSE_API_KEY;
   if (!key) return null;
@@ -367,7 +380,7 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
     // in a different person who happens to share the name.
     if (!isNominee && personDob && budget > 0) {
       const search = await chGet(
-        `/search/officers?q=${encodeURIComponent(o.name)}&items_per_page=35`,
+        `/search/officers?q=${encodeURIComponent(searchableName(o.name))}&items_per_page=35`,
       );
       const extraIds = ((search?.items as OfficerSearchItem[]) ?? [])
         .filter((it) => it.title && it.links?.self)
