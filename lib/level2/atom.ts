@@ -325,8 +325,6 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
     );
     budget -= 1;
     const baseItems = (baseAppts?.items as ApptItem[]) ?? [];
-    const baseDob =
-      dob(baseAppts?.date_of_birth as { month?: number; year?: number } | undefined) || o.dob;
     const baseTotal =
       typeof baseAppts?.total_results === "number"
         ? (baseAppts.total_results as number)
@@ -352,10 +350,22 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
     // professional/nominee director — don't expand or merge.
     const isNominee = baseTotal > NOMINEE_APPOINTMENTS_THRESHOLD;
 
+    // The officer entry on a company often omits the date of birth, but the
+    // PSC (owner) record usually has it — fall back to that, then to the base
+    // record's own DOB. A reliable DOB is what lets us safely merge records.
+    const pscMatch = pscList.find((p) =>
+      samePerson({ name: o.name, dob: "" }, { name: p.name, dob: "" }),
+    );
+    const personDob =
+      o.dob ||
+      pscMatch?.dob ||
+      dob(baseAppts?.date_of_birth as { month?: number; year?: number } | undefined) ||
+      "";
+
     // Merge other officer records of the SAME person (older/dissolved companies
     // sit under other records). Match STRICTLY on date of birth so we never pull
     // in a different person who happens to share the name.
-    if (!isNominee && baseDob && budget > 0) {
+    if (!isNominee && personDob && budget > 0) {
       const search = await chGet(
         `/search/officers?q=${encodeURIComponent(o.name)}&items_per_page=35`,
       );
@@ -363,7 +373,7 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
         .filter((it) => it.title && it.links?.self)
         .filter((it) => {
           const d = dob(it.date_of_birth);
-          return d === baseDob && samePerson({ name: it.title as string, dob: d }, { name: o.name, dob: baseDob });
+          return d === personDob && samePerson({ name: it.title as string, dob: d }, { name: o.name, dob: personDob });
         })
         .map((it) => extractOfficerId(it.links!.self as string))
         .filter((id) => id && id !== o.officerId);

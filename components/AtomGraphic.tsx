@@ -1,12 +1,15 @@
+"use client";
+
+import { useState } from "react";
 import type { CompanyAtom, AtomCompany } from "@/lib/level2/atom";
 
 type LoadState = "loading" | "error" | "done";
 
 const CX = 180;
 const CY = 105;
-const ORX = 158; // orbit radius x
-const ORY = 64; // orbit radius y
-const TILT = 22; // orbit tilt in degrees
+const ORX = 158;
+const ORY = 64;
+const TILT = 22;
 const NUCLEUS_R = 46;
 const MAX_NODES = 12;
 
@@ -15,20 +18,20 @@ const TITLE_RE = /\b(MR|MRS|MS|MISS|DR|PROF|SIR|DAME|LORD|LADY|REV|MX)\b/gi;
 function statusColor(statusLabel: string): string {
   switch (statusLabel) {
     case "Active":
-      return "#4A6B58"; // green
+      return "#4A6B58";
     case "In administration":
     case "Voluntary arrangement":
-      return "#D99A21"; // amber
+      return "#D99A21";
     case "In liquidation":
     case "Insolvency proceedings":
     case "In receivership":
-      return "#D64545"; // red
+      return "#D64545";
     default:
-      return "#9CA3AF"; // dissolved / closed / unknown — grey
+      return "#9CA3AF";
   }
 }
 
-/** "TARASEK, Piotr" -> "Piotr Tarasek"; strips titles, title-cases, truncates. */
+/** "TARASEK, Piotr" -> "Piotr Tarasek". */
 function displayName(raw: string): string {
   let s = raw.replace(TITLE_RE, " ").replace(/\s+/g, " ").trim();
   if (s.includes(",")) {
@@ -37,6 +40,14 @@ function displayName(raw: string): string {
   }
   s = s.toLowerCase().replace(/(^|\s)([a-z])/g, (_m, sp, c) => sp + c.toUpperCase());
   return s.length > 16 ? `${s.slice(0, 15)}…` : s;
+}
+
+function nucleusLinesFor(names: string[]): string[] {
+  const unique = Array.from(new Set(names.map(displayName)));
+  if (unique.length === 0) return ["Owners"];
+  const shown = unique.slice(0, 2);
+  if (unique.length > 2) shown.push(`+${unique.length - 2} more`);
+  return shown;
 }
 
 function insolvencyVerdict(
@@ -51,19 +62,6 @@ function insolvencyVerdict(
   return { label: "No insolvencies among linked companies", color: "#344E41", bg: "#EAF0EC" };
 }
 
-/** Owner names go in the nucleus (electrons orbit the owners, not the company). */
-function nucleusLines(atom: CompanyAtom | null, state: LoadState): string[] {
-  if (state !== "done" || !atom) return ["Owners"];
-  const owners = atom.core.filter((p) => p.isOwner).map((p) => p.name);
-  const base = (owners.length ? owners : atom.core.map((p) => p.name)).map(displayName);
-  const unique = Array.from(new Set(base));
-  if (unique.length === 0) return ["Owners"];
-  const shown = unique.slice(0, 2);
-  if (unique.length > 2) shown.push(`+${unique.length - 2} more`);
-  return shown;
-}
-
-/** Place node i (of n) on one of two tilted ellipses so electrons sit ON the orbits. */
 function nodePos(i: number, n: number) {
   const tiltDeg = i % 2 === 0 ? TILT : -TILT;
   const t = ((-90 + (360 / Math.max(n, 1)) * i) * Math.PI) / 180;
@@ -85,16 +83,51 @@ export function AtomGraphic({
   state: LoadState;
   companyName: string;
 }) {
-  const connected = atom?.connected ?? [];
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const core = atom?.core ?? [];
+  const allConnected = atom?.connected ?? [];
+
+  // People who actually link to at least one connected company.
+  const linkers = core.filter((p) => allConnected.some((c) => c.people.includes(p.name)));
+  const showChips = state === "done" && linkers.length >= 2;
+  const sel = selected && linkers.some((p) => p.name === selected) ? selected : null;
+
+  const connected = sel ? allConnected.filter((c) => c.people.includes(sel)) : allConnected;
   const nodes = connected.slice(0, MAX_NODES);
-  const lines = nucleusLines(atom, state);
+
+  const ownerNames = core.filter((p) => p.isOwner).map((p) => p.name);
+  const nucleusNames = sel ? [sel] : ownerNames.length ? ownerNames : core.map((p) => p.name);
+  const lines = state === "done" ? nucleusLinesFor(nucleusNames) : ["Owners"];
   const lineH = 12.5;
   const firstY = CY - ((lines.length - 1) * lineH) / 2 + 3.5;
-  const verdict =
-    state === "done" && connected.length > 0 ? insolvencyVerdict(atom?.insolvencyCount ?? 0) : null;
+
+  const insolvencyCount = connected.filter((c) => c.insolvent).length;
+  const verdict = state === "done" && connected.length > 0 ? insolvencyVerdict(insolvencyCount) : null;
+
+  const chip = (active: boolean) =>
+    `rounded-full px-3 py-1 text-xs font-semibold transition-colors ${
+      active
+        ? "bg-cri-green text-white"
+        : "border border-cri-border bg-white text-cri-charcoal hover:border-cri-green"
+    }`;
 
   return (
     <div>
+      {showChips ? (
+        <div className="mb-3 flex flex-wrap items-center gap-2">
+          <span className="text-xs text-cri-steel">Show:</span>
+          <button type="button" onClick={() => setSelected(null)} className={chip(!sel)}>
+            All
+          </button>
+          {linkers.map((p) => (
+            <button key={p.name} type="button" onClick={() => setSelected(p.name)} className={chip(sel === p.name)}>
+              {displayName(p.name)}
+            </button>
+          ))}
+        </div>
+      ) : null}
+
       {verdict ? (
         <div
           className="mb-3 rounded-lg px-3 py-2 text-sm font-semibold"
@@ -103,15 +136,14 @@ export function AtomGraphic({
           {verdict.label}
         </div>
       ) : null}
+
       <div className="rounded-xl border border-cri-border bg-cri-bg/50 p-2">
         <svg viewBox="0 0 360 215" className="mx-auto w-full max-w-[380px]" role="img" aria-label={`Companies connected to ${companyName}`}>
-          {/* orbits */}
           <g fill="none" stroke="#8A9097" strokeOpacity="0.55" strokeWidth="1.4">
             <ellipse cx={CX} cy={CY} rx={ORX} ry={ORY} transform={`rotate(${TILT} ${CX} ${CY})`} />
             <ellipse cx={CX} cy={CY} rx={ORX} ry={ORY} transform={`rotate(${-TILT} ${CX} ${CY})`} />
           </g>
 
-          {/* electrons */}
           {nodes.map((c, i) => {
             const p = nodePos(i, nodes.length);
             return (
@@ -127,7 +159,6 @@ export function AtomGraphic({
             );
           })}
 
-          {/* nucleus — owner names */}
           <circle cx={CX} cy={CY} r={NUCLEUS_R} fill="#344E41" stroke="#FFFFFF" strokeWidth="2" />
           {lines.map((line, i) => (
             <text
@@ -145,7 +176,6 @@ export function AtomGraphic({
         </svg>
       </div>
 
-      {/* legend / states */}
       {state === "loading" ? (
         <p className="mt-2 text-sm text-cri-steel">Loading connections from Companies House…</p>
       ) : state === "error" ? (
@@ -162,10 +192,7 @@ export function AtomGraphic({
                 aria-hidden
               />
               <span className="truncate font-medium text-cri-charcoal">{c.name}</span>
-              <span
-                className="ml-auto shrink-0 text-xs"
-                style={{ color: c.insolvent ? "#D64545" : "#6B7280" }}
-              >
+              <span className="ml-auto shrink-0 text-xs" style={{ color: c.insolvent ? "#D64545" : "#6B7280" }}>
                 {c.insolvent ? "Insolvency" : c.statusLabel}
               </span>
             </div>
