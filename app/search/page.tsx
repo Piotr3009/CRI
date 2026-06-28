@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { CompanySearch } from "@/components/CompanySearch";
+import { SearchTypeGate } from "@/components/SearchTypeGate";
 
 export const metadata: Metadata = {
   title: "Search a company's risk report",
@@ -18,13 +18,13 @@ export default function SearchPage() {
           Look up a company
         </h1>
         <p className="mt-3 text-cri-steel">
-          Search by company name, or switch to director name when the trading name
-          isn&apos;t the registered one. Pick a company to open its risk report.
+          First pick the role you want a report on, then search the company by name or director.
+          Each role asks different questions, so the report is tailored to it.
         </p>
       </div>
 
       <div className="mt-8">
-        <CompanySearch />
+        <SearchTypeGate />
       </div>
     </div>
   );
