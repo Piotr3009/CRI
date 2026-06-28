@@ -15,6 +15,7 @@ import {
   optionsFromLabels,
   TRADE_TYPE_OPTIONS,
 } from "@/lib/constants";
+import { CompanyAutocomplete } from "@/components/CompanyAutocomplete";
 
 // ---------------------------------------------------------------------------
 // Static config
@@ -1018,28 +1019,28 @@ export function SubmitReportFlow() {
           >
             <div className="grid gap-4 sm:grid-cols-2">
               {isCompany ? (
-                <>
-                  <Field label="Company name" required error={errors.entityName}>
-                    <input
-                      id="entityName"
-                      className={inp(errors.entityName)}
-                      placeholder="e.g. ABC Construction Ltd"
-                      value={entityName}
-                      onChange={(e) => setEntityName(e.target.value)}
-                    />
-                  </Field>
+                <div id="entityName" className="sm:col-span-2">
                   <Field
-                    label="Companies House number"
-                    hint="Optional — the company's UK registration number (e.g. 01234567). Links reports to the right company."
+                    label="Company"
+                    required
+                    error={errors.entityName}
+                    hint="Search Companies House and pick the company — this captures its registration number."
                   >
-                    <input
-                      className={inputClass}
-                      placeholder="e.g. 01234567"
-                      value={companiesHouseNumber}
-                      onChange={(e) => setCompaniesHouseNumber(e.target.value)}
+                    <CompanyAutocomplete
+                      name={entityName}
+                      number={companiesHouseNumber}
+                      onSelect={(c) => {
+                        setEntityName(c.name);
+                        setCompaniesHouseNumber(c.number);
+                      }}
+                      onClear={() => {
+                        setEntityName("");
+                        setCompaniesHouseNumber("");
+                      }}
+                      error={errors.entityName}
                     />
                   </Field>
-                </>
+                </div>
               ) : (
                 <Field
                   label="Client initials"
@@ -1541,36 +1542,28 @@ export function SubmitReportFlow() {
             description="The practice / company you are reporting on. The name is public; only the project area (e.g. SW19) is shown — never the full address."
           >
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field
-                label="Practice / company name"
-                required
-                error={errors.entityName}
-              >
-                <input
-                  id="entityName"
-                  className={inp(errors.entityName)}
-                  placeholder={
-                    isArchitectPm
-                      ? "e.g. ABC Architects Ltd"
-                      : isQS
-                        ? "e.g. ABC Cost Consultants Ltd"
-                        : "e.g. ABC Project Management Ltd"
-                  }
-                  value={entityName}
-                  onChange={(e) => setEntityName(e.target.value)}
-                />
-              </Field>
-              <Field
-                label="Companies House number"
-                hint="Optional — the practice / company's UK registration number (e.g. 01234567). Sole traders can leave this blank."
-              >
-                <input
-                  className={inputClass}
-                  placeholder="e.g. 01234567"
-                  value={companiesHouseNumber}
-                  onChange={(e) => setCompaniesHouseNumber(e.target.value)}
-                />
-              </Field>
+              <div id="entityName" className="sm:col-span-2">
+                <Field
+                  label="Practice / company"
+                  required
+                  error={errors.entityName}
+                  hint="Search Companies House and pick the practice / company — this captures its registration number."
+                >
+                  <CompanyAutocomplete
+                    name={entityName}
+                    number={companiesHouseNumber}
+                    onSelect={(c) => {
+                      setEntityName(c.name);
+                      setCompaniesHouseNumber(c.number);
+                    }}
+                    onClear={() => {
+                      setEntityName("");
+                      setCompaniesHouseNumber("");
+                    }}
+                    error={errors.entityName}
+                  />
+                </Field>
+              </div>
               <Field
                 label="Their role"
                 required
