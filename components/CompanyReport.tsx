@@ -78,6 +78,13 @@ function statusClass(status: string): string {
   return "text-cri-charcoal";
 }
 
+function isoDate(s: string | null): string {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (Number.isNaN(d.getTime())) return s;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
+}
+
 function CompanyFactsBlock({ facts }: { facts: CompanyFacts | null }) {
   if (!facts) {
     return (
@@ -94,11 +101,35 @@ function CompanyFactsBlock({ facts }: { facts: CompanyFacts | null }) {
         ? "under 1 year old"
         : `${facts.ageYears} year${facts.ageYears === 1 ? "" : "s"} old`;
   const incYear = facts.incorporatedOn ? facts.incorporatedOn.slice(0, 4) : "—";
+
+  const accountsValue = facts.accountsOverdue
+    ? facts.accountsNextDue
+      ? `Overdue (was due ${isoDate(facts.accountsNextDue)})`
+      : "Overdue"
+    : facts.accountsNextDue
+      ? `Next due ${isoDate(facts.accountsNextDue)}`
+      : "Up to date";
+
   return (
     <>
       <SectionTitle note="from Companies House (always available)">Company facts</SectionTitle>
       <div className="mt-2">
         <Row label="Company status" value={facts.statusLabel} valueClass={statusClass(facts.status)} />
+        <Row
+          label="Insolvency history"
+          value={facts.hasInsolvencyHistory ? "Yes" : "No"}
+          valueClass={facts.hasInsolvencyHistory ? "text-cri-amber-dark" : "text-cri-green"}
+        />
+        <Row
+          label="Outstanding charges (secured debt)"
+          value={facts.hasCharges ? "Yes" : "No"}
+          valueClass={facts.hasCharges ? "text-cri-amber-dark" : "text-cri-green"}
+        />
+        <Row label="Company type" value={facts.companyTypeLabel} />
+        <Row
+          label="Nature of business"
+          value={facts.sicLabels.length ? facts.sicLabels.join(" · ") : "—"}
+        />
         <Row
           label="Incorporated"
           value={`${incYear} · ${ageStr}`}
@@ -106,7 +137,7 @@ function CompanyFactsBlock({ facts }: { facts: CompanyFacts | null }) {
         />
         <Row
           label="Accounts"
-          value={facts.accountsOverdue ? "Overdue" : "Up to date"}
+          value={accountsValue}
           valueClass={facts.accountsOverdue ? "text-cri-amber-dark" : "text-cri-green"}
         />
         <Row
