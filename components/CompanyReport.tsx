@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { RiskBadge } from "./RiskBadge";
+import { CompanyAtom } from "./CompanyAtom";
 import type { McAggregate } from "@/lib/level2/mainContractor";
 import type { CompanyFacts } from "@/lib/companiesHouse";
 
@@ -154,15 +155,6 @@ function CompanyFactsBlock({ facts }: { facts: CompanyFacts | null }) {
         ) : null}
       </div>
     </>
-  );
-}
-
-function AtomPlaceholder() {
-  return (
-    <div className="mt-5 flex items-center gap-2.5 rounded-lg border border-dashed border-cri-border px-4 py-3 text-sm text-cri-steel">
-      <span aria-hidden>◇</span>
-      <span>Connected companies (atom) — added later</span>
-    </div>
   );
 }
 
@@ -329,7 +321,7 @@ export function CompanyReport({
           </>
         ) : null}
 
-        <AtomPlaceholder />
+        <CompanyAtom number={number} />
       </div>
     </div>
   );
