@@ -317,28 +317,25 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
   let budget = MAX_TOTAL_APPOINTMENT_FETCHES;
 
   for (const o of toExpand) {
-    const search = await chGet(
-      `/search/officers?q=${encodeURIComponent(o.name)}&items_per_page=35`,
+    // Base record — the person AS LISTED on this company. Always fetched, so the
+    // atom never collapses to empty. Its top-level DOB is authoritative (the
+    // company's officer entry sometimes omits it).
+    const baseAppts = await chGet(
+      `/officers/${encodeURIComponent(o.officerId)}/appointments?items_per_page=50`,
     );
-    const matchedIds = ((search?.items as OfficerSearchItem[]) ?? [])
-      .filter((it) => it.title && it.links?.self)
-      .filter((it) => samePerson({ name: it.title as string, dob: dob(it.date_of_birth) }, o))
-      .map((it) => extractOfficerId(it.links!.self as string))
-      .filter(Boolean);
-
-    const allIds = Array.from(new Set([o.officerId, ...matchedIds]));
-    const cap = Math.max(0, Math.min(MAX_RECORDS_PER_PERSON, budget));
-    const ids = allIds.slice(0, cap);
-    budget -= ids.length;
-
-    const apptLists = await Promise.all(
-      ids.map((id) => chGet(`/officers/${encodeURIComponent(id)}/appointments?items_per_page=50`)),
-    );
+    budget -= 1;
+    const baseItems = (baseAppts?.items as ApptItem[]) ?? [];
+    const baseDob =
+      dob(baseAppts?.date_of_birth as { month?: number; year?: number } | undefined) || o.dob;
+    const baseTotal =
+      typeof baseAppts?.total_results === "number"
+        ? (baseAppts.total_results as number)
+        : baseItems.length;
 
     const seen = new Set<string>();
     const companies: Array<{ companyName: string; companyNumber: string; status: string }> = [];
-    for (const appts of apptLists) {
-      for (const it of (appts?.items as ApptItem[]) ?? []) {
+    const addItems = (items: ApptItem[]) => {
+      for (const it of items) {
         const num = it.appointed_to?.company_number;
         if (!num || seen.has(num)) continue;
         seen.add(num);
@@ -348,13 +345,42 @@ export async function buildCompanyAtom(number: string): Promise<CompanyAtom | nu
           status: it.appointed_to!.company_status ?? "active",
         });
       }
+    };
+    addItems(baseItems);
+
+    // A person whose PRIMARY record alone holds many companies is a
+    // professional/nominee director — don't expand or merge.
+    const isNominee = baseTotal > NOMINEE_APPOINTMENTS_THRESHOLD;
+
+    // Merge other officer records of the SAME person (older/dissolved companies
+    // sit under other records). Match STRICTLY on date of birth so we never pull
+    // in a different person who happens to share the name.
+    if (!isNominee && baseDob && budget > 0) {
+      const search = await chGet(
+        `/search/officers?q=${encodeURIComponent(o.name)}&items_per_page=35`,
+      );
+      const extraIds = ((search?.items as OfficerSearchItem[]) ?? [])
+        .filter((it) => it.title && it.links?.self)
+        .filter((it) => {
+          const d = dob(it.date_of_birth);
+          return d === baseDob && samePerson({ name: it.title as string, dob: d }, { name: o.name, dob: baseDob });
+        })
+        .map((it) => extractOfficerId(it.links!.self as string))
+        .filter((id) => id && id !== o.officerId);
+
+      const cap = Math.max(0, Math.min(MAX_RECORDS_PER_PERSON - 1, budget));
+      const ids = Array.from(new Set(extraIds)).slice(0, cap);
+      budget -= ids.length;
+
+      const apptLists = await Promise.all(
+        ids.map((id) => chGet(`/officers/${encodeURIComponent(id)}/appointments?items_per_page=50`)),
+      );
+      for (const appts of apptLists) addItems((appts?.items as ApptItem[]) ?? []);
     }
 
-    const total = companies.length; // unique companies for this person
-    expansions[o.officerId] =
-      total > NOMINEE_APPOINTMENTS_THRESHOLD
-        ? { expanded: false, total, companies: [] }
-        : { expanded: true, total, companies };
+    expansions[o.officerId] = isNominee
+      ? { expanded: false, total: baseTotal, companies: [] }
+      : { expanded: true, total: companies.length, companies };
 
     if (budget <= 0) break;
   }
