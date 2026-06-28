@@ -127,3 +127,30 @@ export function optionsFromLabels<T extends string>(
     label: labels[value],
   }));
 }
+
+// Fixed trade dictionary — used in registration AND the submit form so the
+// values stay consistent and filterable (no "electrician"/"electric" drift).
+export const TRADE_TYPES = [
+  "General Builder",
+  "Bricklayer",
+  "Carpenter / Joiner",
+  "Electrician",
+  "Plumber",
+  "Heating / Gas Engineer",
+  "Plasterer",
+  "Roofer",
+  "Tiler",
+  "Painter & Decorator",
+  "Groundworker",
+  "Scaffolder",
+  "Glazier",
+  "Flooring",
+  "Demolition",
+  "Landscaper",
+  "Other",
+] as const;
+
+export const TRADE_TYPE_OPTIONS: Option[] = TRADE_TYPES.map((t) => ({
+  value: t,
+  label: t,
+}));

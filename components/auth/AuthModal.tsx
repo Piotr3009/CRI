@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/Modal";
+import { TRADE_TYPES } from "@/lib/constants";
 
 export type AuthMode = "login" | "signup" | "forgot";
 
@@ -22,6 +23,7 @@ export function AuthModal({
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [companyName, setCompanyName] = useState("");
   const [contactName, setContactName] = useState("");
   const [tradeType, setTradeType] = useState("");
@@ -46,6 +48,7 @@ export function AuthModal({
     if (isForgot) return null;
     if (password.length < 8) return "Password must be at least 8 characters.";
     if (isSignup) {
+      if (password !== confirmPassword) return "Passwords do not match.";
       if (!companyName.trim()) return "Enter your company name.";
       if (!contactName.trim()) return "Enter a contact person.";
       if (!tradeType.trim()) return "Enter your trade type.";
@@ -184,6 +187,16 @@ export function AuthModal({
             {isSignup && (
               <>
                 <div>
+                  <label className="label">Confirm password</label>
+                  <input
+                    type="password"
+                    className="input"
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                  />
+                </div>
+                <div>
                   <label className="label">Company name</label>
                   <input
                     className="input"
@@ -203,12 +216,18 @@ export function AuthModal({
                 </div>
                 <div>
                   <label className="label">Trade type</label>
-                  <input
+                  <select
                     className="input"
-                    placeholder="e.g. Electrical, Joinery"
                     value={tradeType}
                     onChange={(e) => setTradeType(e.target.value)}
-                  />
+                  >
+                    <option value="">Select…</option>
+                    {TRADE_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label className="label">

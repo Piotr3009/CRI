@@ -13,6 +13,7 @@ import {
   PROJECT_TYPE_LABELS,
   PROJECT_STATUS_LABELS,
   optionsFromLabels,
+  TRADE_TYPE_OPTIONS,
 } from "@/lib/constants";
 
 // ---------------------------------------------------------------------------
@@ -938,13 +939,14 @@ export function SubmitReportFlow() {
             label="Trade type"
             required
             error={errors.reporterTradeType}
-            hint="e.g. Electrical, Joinery"
           >
-            <input
+            <Select
               id="reporterTradeType"
-              className={inp(errors.reporterTradeType)}
               value={reporterTradeType}
-              onChange={(e) => setReporterTradeType(e.target.value)}
+              onChange={setReporterTradeType}
+              options={TRADE_TYPE_OPTIONS}
+              placeholder="Select…"
+              error={errors.reporterTradeType}
             />
           </Field>
         </div>
