@@ -17,6 +17,14 @@ import {
 } from "@/lib/constants";
 import { CompanyAutocomplete } from "@/components/CompanyAutocomplete";
 import { BEHAVIOUR_QUESTIONS, type BehaviourKey } from "@/lib/behaviourQuestions";
+import {
+  PM_SCORES,
+  QS_SCORES,
+  AR_SCORES,
+  type PmKey,
+  type QsKey,
+  type ArKey,
+} from "@/lib/spScores";
 
 // ---------------------------------------------------------------------------
 // Static config
@@ -74,47 +82,6 @@ const SP_CONSENT_ITEMS = CONSENT_ITEMS.filter(
   (c) => c.key !== "allPaymentsDeclared",
 );
 
-const PM_QUESTIONS: { key: PmKey; label: string }[] = [
-  { key: "pmScheduleScore", label: "How well-prepared and realistic was the programme / schedule?" },
-  { key: "pmTenderDistribScore", label: "Did the PM ensure all tender documents reached every bidder fairly and on time?" },
-  { key: "pmDtmProfessionalScore", label: "How professionally were design team meetings (DTMs) run?" },
-  { key: "pmImpartialScore", label: "Was the PM fair and impartial, rather than always siding with the client?" },
-  { key: "pmDecisionsScore", label: "Did the PM make and communicate decisions on time, without blocking delays?" },
-  { key: "pmFragmentationScore", label: "Did the PM break work into sensible packages, rather than fragmenting it in a way that caused you losses?" },
-  { key: "pmCommunicationScore", label: "Was communication clear, specific and responsive?" },
-  { key: "pmRealisticScore", label: "Were the PM's instructions and expectations realistic and achievable?" },
-  { key: "pmDtmFairnessScore", label: "On DTMs, did the PM fairly assign responsibility and hold everyone (not just the contractor) accountable?" },
-  { key: "pmWouldRecommendScore", label: "Would you work with this PM again?" },
-];
-
-const QS_QUESTIONS: { key: QsKey; label: string }[] = [
-  { key: "qsFairTenderScore", label: "Were all bidders given the exact same spec and scope to price (a fair like-for-like tender)?" },
-  { key: "qsTenderDocsScore", label: "Were the tender documents complete and clear enough to price properly?" },
-  { key: "qsPriceChallengeScore", label: "When they challenged your price as too high, was it backed by a proper like-for-like check, not guesswork?" },
-  { key: "qsOpenToExplanationScore", label: "Were they open to your explanation of where the price came from, rather than assuming you'd inflated it?" },
-  { key: "qsMeasurementScore", label: "Were their measurements accurate (not under-measured to cut your figure)?" },
-  { key: "qsVariationPricingScore", label: "Did they price variations fairly (reasonable rates, not deflated)?" },
-  { key: "qsClaimsScore", label: "Did they acknowledge legitimate claims, rather than rejecting everything by default?" },
-  { key: "qsVariationAcceptanceScore", label: "How fair and realistic was it to get a legitimate variation accepted?" },
-  { key: "qsCertTimingScore", label: "Were payment certificates / valuations issued on time?" },
-  { key: "qsUnfairDeductionsScore", label: "Were the certificates free of unfair deductions?" },
-  { key: "qsFinalAccountScore", label: "Was the final account fair and settled in good time?" },
-  { key: "qsImpartialScore", label: "Were they impartial, rather than always acting in the client's favour against you?" },
-  { key: "qsCommunicationScore", label: "Was communication clear, specific and timely?" },
-  { key: "qsWouldRecommendScore", label: "Would you work with this QS again?" },
-];
-
-const AR_QUESTIONS: { key: ArKey; label: string }[] = [
-  { key: "arDrawingsAccurateScore", label: "Were the drawings accurate (dimensions matched reality)?" },
-  { key: "arCompletenessScore", label: "Was the documentation complete (everything you needed to build)?" },
-  { key: "arCoordinationScore", label: "Were the drawings coordinated across disciplines (architecture / structure / services didn't clash)?" },
-  { key: "arErrorFreeScore", label: "Was the design free of errors that forced rework?" },
-  { key: "arTimelinessScore", label: "Did they deliver information, drawings, RFI answers and design changes on time, without blocking the works?" },
-  { key: "arFewChangesScore", label: "Were design changes reasonably limited (not constantly changing their mind)?" },
-  { key: "arBuildabilityScore", label: "Were they open to the contractor's buildability suggestions?" },
-  { key: "arImpartialScore", label: "Were they impartial and fair, rather than protecting themselves / the client at your expense?" },
-  { key: "arWouldRecommendScore", label: "Would you work with this architect again?" },
-];
 
 const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
@@ -133,44 +100,6 @@ type Consents = {
   allPaymentsDeclared: boolean;
 };
 
-type PmKey =
-  | "pmScheduleScore"
-  | "pmTenderDistribScore"
-  | "pmDtmProfessionalScore"
-  | "pmImpartialScore"
-  | "pmDecisionsScore"
-  | "pmFragmentationScore"
-  | "pmCommunicationScore"
-  | "pmRealisticScore"
-  | "pmDtmFairnessScore"
-  | "pmWouldRecommendScore";
-
-type QsKey =
-  | "qsFairTenderScore"
-  | "qsTenderDocsScore"
-  | "qsPriceChallengeScore"
-  | "qsOpenToExplanationScore"
-  | "qsMeasurementScore"
-  | "qsVariationPricingScore"
-  | "qsClaimsScore"
-  | "qsVariationAcceptanceScore"
-  | "qsCertTimingScore"
-  | "qsUnfairDeductionsScore"
-  | "qsFinalAccountScore"
-  | "qsImpartialScore"
-  | "qsCommunicationScore"
-  | "qsWouldRecommendScore";
-
-type ArKey =
-  | "arDrawingsAccurateScore"
-  | "arCompletenessScore"
-  | "arCoordinationScore"
-  | "arErrorFreeScore"
-  | "arTimelinessScore"
-  | "arFewChangesScore"
-  | "arBuildabilityScore"
-  | "arImpartialScore"
-  | "arWouldRecommendScore";
 
 type PayRow = { daysLate: string; amountGbp: string };
 
@@ -605,7 +534,7 @@ export function SubmitReportFlow() {
       if (!spReporterRole.trim()) e.spReporterRole = "Required";
 
       if (isArchitectPm) {
-        AR_QUESTIONS.forEach((q) => {
+        AR_SCORES.forEach((q) => {
           const v = Number(arScores[q.key]);
           if (!arScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
             e[q.key] = "Pick 1–10";
@@ -615,7 +544,7 @@ export function SubmitReportFlow() {
 
       // PM questions: on the PM tile, or when an architect also acted as PM.
       if (isPM || (isArchitectPm && alsoActedAsPm)) {
-        PM_QUESTIONS.forEach((q) => {
+        PM_SCORES.forEach((q) => {
           const v = Number(pmScores[q.key]);
           if (!pmScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
             e[q.key] = "Pick 1–10";
@@ -625,7 +554,7 @@ export function SubmitReportFlow() {
 
       // QS questions: on the QS tile, or when a PM/architect also acted as QS.
       if (isQS || ((isPM || isArchitectPm) && alsoActedAsQs)) {
-        QS_QUESTIONS.forEach((q) => {
+        QS_SCORES.forEach((q) => {
           const v = Number(qsScores[q.key]);
           if (!qsScores[q.key] || !Number.isInteger(v) || v < 1 || v > 10) {
             e[q.key] = "Pick 1–10";
@@ -679,9 +608,9 @@ export function SubmitReportFlow() {
     "variationsNoPaper",
     "retentionStatus",
     "projectReadiness",
-    ...AR_QUESTIONS.map((q) => q.key),
-    ...PM_QUESTIONS.map((q) => q.key),
-    ...QS_QUESTIONS.map((q) => q.key),
+    ...AR_SCORES.map((q) => q.key),
+    ...PM_SCORES.map((q) => q.key),
+    ...QS_SCORES.map((q) => q.key),
     ...payRows.map((_, i) => `pay_${i}`),
     "abandonedCount",
     ...BEHAVIOUR_QUESTIONS.map((q) => `beh_${q.key}`),
@@ -1628,7 +1557,7 @@ export function SubmitReportFlow() {
               description="Rate each from 1 (poor) to 10 (excellent). Averages and gauges are built later from many reports."
             >
               <ScoreList
-                questions={AR_QUESTIONS}
+                questions={AR_SCORES}
                 get={(k) => arScores[k as ArKey] ?? ""}
                 set={(k, v) =>
                   setArScores((prev) => ({ ...prev, [k as ArKey]: v }))
@@ -1672,7 +1601,7 @@ export function SubmitReportFlow() {
               description="Rate each from 1 (poor) to 10 (excellent). Averages and gauges are built later from many reports."
             >
               <ScoreList
-                questions={PM_QUESTIONS}
+                questions={PM_SCORES}
                 get={(k) => pmScores[k as PmKey] ?? ""}
                 set={(k, v) =>
                   setPmScores((prev) => ({ ...prev, [k as PmKey]: v }))
@@ -1720,7 +1649,7 @@ export function SubmitReportFlow() {
               description="Rate each from 1 (poor) to 10 (excellent). Facts first — averages come later."
             >
               <ScoreList
-                questions={QS_QUESTIONS}
+                questions={QS_SCORES}
                 get={(k) => qsScores[k as QsKey] ?? ""}
                 set={(k, v) =>
                   setQsScores((prev) => ({ ...prev, [k as QsKey]: v }))

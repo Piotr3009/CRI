@@ -15,6 +15,13 @@ import { formatDate, formatCurrencyGBP } from "@/lib/format";
 import { calculateOverallRisk, isResidentialEntity } from "@/lib/privacy";
 import { BEHAVIOUR_QUESTIONS, BEHAVIOUR_ANSWER_LABELS } from "@/lib/behaviourQuestions";
 import {
+  PM_SCORES,
+  QS_SCORES,
+  AR_SCORES,
+  isSpEntityType,
+  type SpScore,
+} from "@/lib/spScores";
+import {
   moderateAction,
   setEvidenceStatusAction,
   setVisibilityAction,
@@ -48,9 +55,39 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
   );
 }
 
+/** Renders one service-provider score block (PM / QS / Architect). */
+function SpScoreCard({
+  title,
+  role,
+  scores,
+  report,
+}: {
+  title: string;
+  role: string | null;
+  scores: SpScore[];
+  report: FullReport;
+}) {
+  return (
+    <div className="card p-6 shadow-card">
+      <h2 className="text-base font-semibold text-cri-charcoal">{title} scores</h2>
+      {role ? (
+        <p className="mt-1 text-xs text-cri-steel">Reported role: {role}</p>
+      ) : null}
+      <dl className="mt-3">
+        {scores.map((s) => (
+          <Row key={s.key} label={s.label}>
+            {report[s.key] != null ? `${report[s.key]} / 10` : "—"}
+          </Row>
+        ))}
+      </dl>
+    </div>
+  );
+}
+
 export function AdminReportDetail({ report }: { report: FullReport }) {
   const residential = isResidentialEntity(report);
   const isMC = report.entityType === "MAIN_CONTRACTOR";
+  const isSP = isSpEntityType(report.entityType);
   const evidenceOptions = optionsFromLabels(EVIDENCE_STATUS_LABELS);
   const visibilityOptions = optionsFromLabels(VISIBILITY_LABELS);
 
@@ -217,39 +254,55 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
         </div>
       </div>
 
-      {/* Scores */}
-      <div className="card p-6 shadow-card">
-        <h2 className="text-base font-semibold text-cri-charcoal">
-          Risk scoring
-        </h2>
-        <dl className="mt-3">
-          <Row label="Payment Score">{report.paymentScore.toFixed(1)} / 10</Row>
-          <Row label="Dispute Risk">
-            <RiskBadge level={report.disputeRisk} />
-          </Row>
-          <Row label="Formal dispute / legal action">
-            {report.formalDispute
-              ? YES_NO_UNSURE_LABELS[report.formalDispute]
-              : "—"}
-          </Row>
-        </dl>
-      </div>
-
-      {/* Behaviour — raw answers (same questions the public report averages) */}
-      <div className="card p-6 shadow-card">
-        <h2 className="text-base font-semibold text-cri-charcoal">Behaviour</h2>
-        <p className="mt-1 text-xs text-cri-steel">
-          This reporter&apos;s raw answers. The public report shows the average of
-          these (as gauges) across all reports for the company.
-        </p>
-        <dl className="mt-3">
-          {BEHAVIOUR_QUESTIONS.map((q) => (
-            <Row key={q.key} label={q.label}>
-              {report[q.key] ? BEHAVIOUR_ANSWER_LABELS[report[q.key]!] : "—"}
+      {/* Scores — payment/dispute is meaningful for paying reports only */}
+      {!isSP ? (
+        <div className="card p-6 shadow-card">
+          <h2 className="text-base font-semibold text-cri-charcoal">
+            Risk scoring
+          </h2>
+          <dl className="mt-3">
+            <Row label="Payment Score">{report.paymentScore.toFixed(1)} / 10</Row>
+            <Row label="Dispute Risk">
+              <RiskBadge level={report.disputeRisk} />
             </Row>
-          ))}
-        </dl>
-      </div>
+            <Row label="Formal dispute / legal action">
+              {report.formalDispute
+                ? YES_NO_UNSURE_LABELS[report.formalDispute]
+                : "—"}
+            </Row>
+          </dl>
+        </div>
+      ) : null}
+
+      {/* Behaviour — raw answers (paying reports only; SPs answer quality scores instead) */}
+      {!isSP ? (
+        <div className="card p-6 shadow-card">
+          <h2 className="text-base font-semibold text-cri-charcoal">Behaviour</h2>
+          <p className="mt-1 text-xs text-cri-steel">
+            This reporter&apos;s raw answers. The public report shows the average of
+            these (as gauges) across all reports for the company.
+          </p>
+          <dl className="mt-3">
+            {BEHAVIOUR_QUESTIONS.map((q) => (
+              <Row key={q.key} label={q.label}>
+                {report[q.key] ? BEHAVIOUR_ANSWER_LABELS[report[q.key]!] : "—"}
+              </Row>
+            ))}
+          </dl>
+        </div>
+      ) : null}
+
+      {/* Service-provider quality scores. Each block shows when its data exists,
+          so a combined report (e.g. PM who also acted as QS) shows both. */}
+      {report.pmWouldRecommendScore != null ? (
+        <SpScoreCard title="Project manager" role={report.spReporterRole} scores={PM_SCORES} report={report} />
+      ) : null}
+      {report.qsWouldRecommendScore != null ? (
+        <SpScoreCard title="Quantity surveyor" role={report.spReporterRole} scores={QS_SCORES} report={report} />
+      ) : null}
+      {report.arWouldRecommendScore != null ? (
+        <SpScoreCard title="Architect / PM" role={report.spReporterRole} scores={AR_SCORES} report={report} />
+      ) : null}
 
       {/* Payments — per-payment list (paying report types; SPs have none) */}
       {report.payments.length > 0 ? (

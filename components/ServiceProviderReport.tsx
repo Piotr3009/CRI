@@ -1,43 +1,19 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import type { RiskLevel } from "@prisma/client";
-import { RiskBadge } from "./RiskBadge";
 import { Speedometer } from "./Speedometer";
 import { AtomGraphic } from "./AtomGraphic";
-import type { McAggregate } from "@/lib/level2/mainContractor";
-import { BEHAVIOUR_QUESTIONS } from "@/lib/behaviourQuestions";
+import type { SpAggregate } from "@/lib/level2/serviceProvider";
+import { SP_CONFIGS, type SpEntityType } from "@/lib/spScores";
 import type { CompanyFacts } from "@/lib/companiesHouse";
 import type { CompanyAtom } from "@/lib/level2/atom";
 
-const RISK_TEXT: Record<RiskLevel, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
-
-function gbp(n: number | null): string {
-  return n == null ? "—" : "£" + n.toLocaleString("en-GB");
-}
 function isoDate(s: string | null): string {
   if (!s) return "—";
   const d = new Date(s);
   return Number.isNaN(d.getTime())
     ? s
     : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
-}
-function pctOf(count: number, total: number): string {
-  return total === 0 ? "—" : `${count} of ${total} (${Math.round((count / total) * 100)}%)`;
-}
-function level(ratio: number, hi: number, mid: number): RiskLevel {
-  if (ratio >= hi) return "HIGH";
-  if (ratio >= mid) return "MEDIUM";
-  return "LOW";
-}
-
-function NoRecordPill() {
-  return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-cri-border bg-cri-bg px-2.5 py-1 text-xs font-medium text-cri-steel">
-      <span className="h-1.5 w-1.5 rounded-full bg-cri-steel" aria-hidden />
-      No record yet
-    </span>
-  );
 }
 
 function Row({ label, value, valueClass = "" }: { label: string; value: string; valueClass?: string }) {
@@ -49,23 +25,22 @@ function Row({ label, value, valueClass = "" }: { label: string; value: string; 
   );
 }
 
-function SectionTitle({ children }: { children: string }) {
+function SectionTitle({ children }: { children: React.ReactNode }) {
   return <p className="mt-7 mb-2 text-sm font-semibold uppercase tracking-wide text-cri-charcoal">{children}</p>;
 }
 
-export function CompanyReport({
+export function ServiceProviderReport({
   number,
+  entityType,
   aggregate: a,
-  totalReports,
   facts,
-  kind = "contractor",
 }: {
   number: string;
-  aggregate: McAggregate;
-  totalReports: number;
+  entityType: SpEntityType;
+  aggregate: SpAggregate;
   facts: CompanyFacts | null;
-  kind?: "contractor" | "commercial";
 }) {
+  const config = SP_CONFIGS[entityType];
   const [atom, setAtom] = useState<CompanyAtom | null>(null);
   const [atomState, setAtomState] = useState<"loading" | "error" | "done">("loading");
 
@@ -92,19 +67,10 @@ export function CompanyReport({
     };
   }, [number]);
 
-  const n = a.reportCount;
+  const n = a.totalReports;
   const has = n > 0;
   const name = facts?.name ?? `Company ${number}`;
   const linked = atomState === "done" ? String(atom?.connected.length ?? 0) : "—";
-
-  const riskLabel = a.overallRisk ? RISK_TEXT[a.overallRisk] : n === 0 ? "No rating yet" : "Provisional";
-  const riskClass = !a.overallRisk
-    ? "text-cri-steel"
-    : a.overallRisk === "LOW"
-      ? "text-cri-green"
-      : "text-cri-amber-dark";
-
-  const dispute: RiskLevel | null = has ? level(a.formalDisputeReports / n, 0.3, 0.1) : null;
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
@@ -118,7 +84,7 @@ export function CompanyReport({
           <div className="min-w-0">
             <h1 className="text-2xl font-bold text-cri-charcoal">{name}</h1>
             <p className="mt-1 text-sm text-cri-steel">
-              Company no. {number}
+              {config.title} · Company no. {number}
               {facts?.registeredAddress ? ` · ${facts.registeredAddress.split(",").slice(-2).join(",").trim()}` : ""}
             </p>
           </div>
@@ -139,8 +105,10 @@ export function CompanyReport({
           {/* Counters */}
           <div className="grid grid-cols-3 gap-3">
             <div className="rounded-xl bg-cri-bg p-4">
-              <p className="text-xs text-cri-steel">Overall risk</p>
-              <p className={`mt-1 text-lg font-bold ${riskClass}`}>{riskLabel}</p>
+              <p className="text-xs text-cri-steel">Overall score</p>
+              <p className="mt-1 text-lg font-bold text-cri-charcoal">
+                {has ? `${a.overall.toFixed(1)} / 10` : "No rating yet"}
+              </p>
             </div>
             <div className="rounded-xl bg-cri-bg p-4">
               <p className="text-xs text-cri-steel">Reviews</p>
@@ -152,24 +120,15 @@ export function CompanyReport({
             </div>
           </div>
 
-          {/* Contractor reviews */}
-          <SectionTitle>Contractor reviews</SectionTitle>
+          {/* Headline */}
+          <SectionTitle>{config.title} reviews</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2">
             <Speedometer
-              label="Payment score"
-              value={has ? a.paymentReliability : null}
+              label="Overall score"
+              value={has ? a.overall : null}
               footnote={
-                has && a.totalPayments > 0
-                  ? `Based on ${a.totalPayments} payment${a.totalPayments === 1 ? "" : "s"} from ${n} subcontractor${n === 1 ? "" : "s"} · ${a.avgPaymentDelayDays === 0 ? "all on time" : `avg ${a.avgPaymentDelayDays} days late`}`
-                  : undefined
-              }
-            />
-            <Speedometer
-              label="Behaviour"
-              value={has ? a.behaviour : null}
-              footnote={
-                has && a.wouldWorkAgainPct != null
-                  ? `${a.wouldWorkAgainPct}% would work with this client again`
+                has && a.wouldRecommend != null
+                  ? `Would work with them again: ${a.wouldRecommend.toFixed(1)}/10 avg`
                   : undefined
               }
             />
@@ -183,61 +142,18 @@ export function CompanyReport({
             </span>
           </p>
 
-          {/* Behaviour detail — one gauge per question; the average of these is the Behaviour gauge above */}
-          <SectionTitle>Behaviour detail</SectionTitle>
+          {/* Score detail — one gauge per question; the average of these is the Overall gauge above */}
+          <SectionTitle>Score detail</SectionTitle>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-            {BEHAVIOUR_QUESTIONS.map((q) => (
+            {config.scores.map((s) => (
               <Speedometer
-                key={q.key}
+                key={s.key}
                 size="sm"
-                label={q.gaugeLabel}
-                value={has ? a.behaviourByQuestion[q.key] : null}
+                label={s.gaugeLabel}
+                value={has ? (a.byScore[s.key] ?? null) : null}
               />
             ))}
           </div>
-
-          {/* Site readiness — about the site/project, separate from client behaviour and not in the behaviour average */}
-          {kind === "contractor" ? (
-            <>
-              <SectionTitle>Site readiness</SectionTitle>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Speedometer size="sm" label="Site readiness" value={has ? a.projectReadiness : null} />
-              </div>
-              <p className="mt-1.5 flex gap-1.5 text-xs text-cri-steel">
-                <span aria-hidden>ⓘ</span>
-                <span>Whether the site/project was ready for the contractor&apos;s stage — separate from how the client behaved.</span>
-              </p>
-            </>
-          ) : null}
-
-          {/* Full breakdown — always shown */}
-          <SectionTitle>Payment behaviour</SectionTitle>
-          <Row label="Average payment delay" value={has && a.avgPaymentDelayDays != null ? `${a.avgPaymentDelayDays} days` : "No record yet"} />
-          <Row label="Reports saying paid late" value={has ? pctOf(a.reportsPaidLate, n) : "No record yet"} />
-          <Row
-            label="Abandoned invoices (>60 days)"
-            value={has ? `${a.abandonedInvoicesReports} · ${gbp(a.abandonedInvoicesTotalGbp)}` : "No record yet"}
-          />
-
-          {kind === "contractor" ? (
-            <>
-              <SectionTitle>Deductions &amp; retention</SectionTitle>
-              <Row
-                label="Back-charges reported"
-                value={has ? (a.backChargesReports === 0 ? "0" : `${a.backChargesReports} of ${n} · avg ${gbp(a.backChargesAvgGbp)}`) : "No record yet"}
-              />
-              <Row label="Retention not returned" value={has ? pctOf(a.retentionNotReturnedReports, n) : "No record yet"} />
-              <Row label="Variations without paperwork" value={has ? pctOf(a.variationsNoPaperReports, n) : "No record yet"} />
-            </>
-          ) : null}
-
-          <SectionTitle>Disputes</SectionTitle>
-          <div className="mb-2">
-            {dispute ? <RiskBadge level={dispute} label="Dispute risk" /> : <NoRecordPill />}
-          </div>
-          <Row label="Formal dispute raised" value={has ? pctOf(a.formalDisputeReports, n) : "No record yet"} />
-          <Row label="Contract value range" value={has && a.contractValueMinGbp != null ? `${gbp(a.contractValueMinGbp)} – ${gbp(a.contractValueMaxGbp)}` : "No record yet"} />
-          <Row label="Project areas" value={has && a.areas.length ? a.areas.join(" · ") : "No record yet"} />
 
           {/* Connections (atom) */}
           <SectionTitle>Connections</SectionTitle>

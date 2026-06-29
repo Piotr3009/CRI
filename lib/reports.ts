@@ -17,6 +17,7 @@ import type {
 import { prisma } from "./db";
 import { toPublicReport, type PublicReport } from "./privacy";
 import type { McReportRow } from "./level2/mainContractor";
+import type { SpReportRow } from "./level2/serviceProvider";
 
 // ---------------------------------------------------------------------------
 // Create
@@ -244,12 +245,13 @@ export async function createRightToReply(data: {
  */
 export async function getMainContractorReportRows(
   chNumber: string,
+  entityType: EntityType = "MAIN_CONTRACTOR",
 ): Promise<McReportRow[]> {
   const rows = await prisma.riskReport.findMany({
     where: {
       moderationStatus: "APPROVED",
       visibility: { not: "ADMIN_ONLY" },
-      entityType: "MAIN_CONTRACTOR",
+      entityType,
       companiesHouseNumber: chNumber,
     },
     select: {
@@ -317,4 +319,71 @@ export async function countApprovedReportsForCompany(
       companiesHouseNumber: chNumber,
     },
   });
+}
+
+/** Approved, public rows for a service-provider company (PM / QS / Architect). */
+export async function getServiceProviderReportRows(
+  chNumber: string,
+  entityType: EntityType,
+): Promise<SpReportRow[]> {
+  const rows = await prisma.riskReport.findMany({
+    where: {
+      moderationStatus: "APPROVED",
+      visibility: { not: "ADMIN_ONLY" },
+      entityType,
+      companiesHouseNumber: chNumber,
+    },
+    select: {
+      pmScheduleScore: true,
+      pmTenderDistribScore: true,
+      pmDtmProfessionalScore: true,
+      pmImpartialScore: true,
+      pmDecisionsScore: true,
+      pmFragmentationScore: true,
+      pmCommunicationScore: true,
+      pmRealisticScore: true,
+      pmDtmFairnessScore: true,
+      pmWouldRecommendScore: true,
+      qsFairTenderScore: true,
+      qsTenderDocsScore: true,
+      qsPriceChallengeScore: true,
+      qsOpenToExplanationScore: true,
+      qsMeasurementScore: true,
+      qsVariationPricingScore: true,
+      qsClaimsScore: true,
+      qsVariationAcceptanceScore: true,
+      qsCertTimingScore: true,
+      qsUnfairDeductionsScore: true,
+      qsFinalAccountScore: true,
+      qsImpartialScore: true,
+      qsCommunicationScore: true,
+      qsWouldRecommendScore: true,
+      arDrawingsAccurateScore: true,
+      arCompletenessScore: true,
+      arCoordinationScore: true,
+      arErrorFreeScore: true,
+      arTimelinessScore: true,
+      arFewChangesScore: true,
+      arBuildabilityScore: true,
+      arImpartialScore: true,
+      arWouldRecommendScore: true,
+    },
+  });
+  return rows;
+}
+
+/** Which entity types have approved, public reports for this company (with counts). */
+export async function getCompanyEntityTypes(
+  chNumber: string,
+): Promise<{ entityType: EntityType; count: number }[]> {
+  const grouped = await prisma.riskReport.groupBy({
+    by: ["entityType"],
+    where: {
+      moderationStatus: "APPROVED",
+      visibility: { not: "ADMIN_ONLY" },
+      companiesHouseNumber: chNumber,
+    },
+    _count: { _all: true },
+  });
+  return grouped.map((g) => ({ entityType: g.entityType, count: g._count._all }));
 }
