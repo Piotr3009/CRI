@@ -4,8 +4,12 @@ import { useState } from "react";
 import Link from "next/link";
 import { CompanyAutocomplete, type Company } from "@/components/CompanyAutocomplete";
 
-export function CompanySearch() {
+export function CompanySearch({ role }: { role?: string }) {
   const [selected, setSelected] = useState<Company | null>(null);
+
+  const reportHref = selected
+    ? `/company/${encodeURIComponent(selected.number)}${role ? `?role=${encodeURIComponent(role)}` : ""}`
+    : "#";
 
   return (
     <div>
@@ -30,7 +34,7 @@ export function CompanySearch() {
               </p>
             </div>
             <Link
-              href={`/company/${encodeURIComponent(selected.number)}`}
+              href={reportHref}
               className="inline-flex items-center gap-2 rounded-lg bg-cri-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cri-green-dark"
             >
               Open report →

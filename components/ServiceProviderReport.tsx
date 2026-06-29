@@ -121,6 +121,15 @@ export function ServiceProviderReport({
           </div>
 
           {/* Headline */}
+          {!has ? (
+            <div className="mb-4 rounded-xl border border-cri-amber-light bg-cri-amber-light/50 p-4">
+              <p className="text-sm font-semibold text-cri-amber-dark">No reviews yet</p>
+              <p className="mt-1 text-sm text-cri-steel">
+                No one has reported on this {config.title.toLowerCase()} yet — but here&apos;s information
+                about the company below. Reviews will appear here as contractors submit them.
+              </p>
+            </div>
+          ) : null}
           <SectionTitle>{config.title} reviews</SectionTitle>
           <div className="grid gap-3 sm:grid-cols-2">
             <Speedometer

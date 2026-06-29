@@ -43,7 +43,7 @@ export function SearchTypeGate() {
         </div>
 
         <div className="mt-6">
-          <CompanySearch />
+          <CompanySearch role={selected.value} />
         </div>
       </div>
     );
