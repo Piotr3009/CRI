@@ -9,11 +9,11 @@ type Tile = { value: string; title: string; subtitle: string; active: boolean };
 // has a built report; the rest are locked until their report engine is added.
 const TILES: Tile[] = [
   { value: "RESIDENTIAL_CLIENT", title: "Private client", subtitle: "individual", active: false },
-  { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: false },
+  { value: "COMMERCIAL_CLIENT", title: "Commercial client", subtitle: "company / investor", active: true },
   { value: "MAIN_CONTRACTOR", title: "Main contractor", subtitle: "pays subcontractors", active: true },
-  { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: false },
-  { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: false },
-  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: false },
+  { value: "PROJECT_MANAGER", title: "Project manager", subtitle: "service provider", active: true },
+  { value: "QUANTITY_SURVEYOR", title: "Quantity surveyor", subtitle: "service provider", active: true },
+  { value: "ARCHITECT_PM", title: "Architect / PM", subtitle: "service provider", active: true },
 ];
 
 export function SearchTypeGate() {
