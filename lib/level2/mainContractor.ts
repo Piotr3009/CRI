@@ -92,6 +92,7 @@ export type McAggregate = {
   totalPayments: number; // pooled count of every individual payment across all reports
   reportsPaidLate: number;
   abandonedInvoicesReports: number;
+  abandonedInvoicesCount: number; // total invoices across all reports
   abandonedInvoicesTotalGbp: number;
   backChargesReports: number;
   backChargesAvgGbp: number | null;
@@ -213,6 +214,10 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
   const reportsPaidLate = rows.filter((r) => (r.avgPaymentDelayDays ?? 0) > 0).length;
 
   const abandonedInvoicesReports = rows.filter((r) => (r.abandonedInvoicesCount ?? 0) > 0).length;
+  const abandonedInvoicesCount = rows.reduce(
+    (sum, r) => sum + (r.abandonedInvoicesCount ?? 0),
+    0,
+  );
   const abandonedInvoicesTotalGbp = rows.reduce(
     (sum, r) => sum + (r.abandonedInvoicesTotalGbp ?? 0),
     0,
@@ -253,6 +258,7 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
     totalPayments,
     reportsPaidLate,
     abandonedInvoicesReports,
+    abandonedInvoicesCount,
     abandonedInvoicesTotalGbp,
     backChargesReports,
     backChargesAvgGbp,

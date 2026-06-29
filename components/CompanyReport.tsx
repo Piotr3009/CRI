@@ -192,6 +192,33 @@ export function CompanyReport({
             </span>
           </p>
 
+          {/* Abandoned invoices — the single most serious payment signal, shown
+              prominently. Deliberately OUTSIDE the payment score: that gauge
+              measures lateness, not whether an invoice was paid at all. */}
+          {has && a.abandonedInvoicesCount > 0 ? (
+            <div className="mt-4 rounded-xl border-2 border-[#D64545] bg-[#D64545]/[0.06] p-4">
+              <div className="flex items-center gap-2">
+                <span aria-hidden className="text-base text-[#D64545]">⚠</span>
+                <p className="text-xs font-bold uppercase tracking-wider text-[#D64545]">
+                  Abandoned invoices
+                </p>
+              </div>
+              <p className="mt-1.5 text-2xl font-bold text-[#D64545]">
+                {a.abandonedInvoicesCount} invoice{a.abandonedInvoicesCount === 1 ? "" : "s"} ·{" "}
+                {gbp(a.abandonedInvoicesTotalGbp)}
+              </p>
+              <p className="mt-1 text-sm text-cri-steel">
+                Reported unpaid (60+ days) across {a.abandonedInvoicesReports} report
+                {a.abandonedInvoicesReports === 1 ? "" : "s"}. Not part of the payment score — that gauge
+                measures lateness, not non-payment.
+              </p>
+            </div>
+          ) : has ? (
+            <p className="mt-3 flex items-center gap-1.5 text-xs text-cri-green">
+              <span aria-hidden>✓</span> No abandoned invoices reported.
+            </p>
+          ) : null}
+
           {/* Behaviour detail — one gauge per question; the average of these is the Behaviour gauge above */}
           <SectionTitle>Behaviour detail</SectionTitle>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -223,10 +250,6 @@ export function CompanyReport({
           <SectionTitle>Payment behaviour</SectionTitle>
           <Row label="Average payment delay" value={has && a.avgPaymentDelayDays != null ? `${a.avgPaymentDelayDays} days` : "No record yet"} />
           <Row label="Reports saying paid late" value={has ? pctOf(a.reportsPaidLate, n) : "No record yet"} />
-          <Row
-            label="Abandoned invoices (>60 days)"
-            value={has ? `${a.abandonedInvoicesReports} · ${gbp(a.abandonedInvoicesTotalGbp)}` : "No record yet"}
-          />
 
           {kind === "contractor" ? (
             <>
