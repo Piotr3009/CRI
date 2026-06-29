@@ -219,16 +219,21 @@ export function CompanyReport({
             </p>
           ) : null}
 
-          {/* Behaviour detail — one gauge per question; the average of these is the Behaviour gauge above */}
+          {/* Behaviour detail — full question on the left, small gauge with the answer on the right, row by row */}
           <SectionTitle>Behaviour detail</SectionTitle>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="divide-y divide-cri-border/60">
             {BEHAVIOUR_QUESTIONS.map((q) => (
-              <Speedometer
-                key={q.key}
-                size="sm"
-                label={q.gaugeLabel}
-                value={has ? a.behaviourByQuestion[q.key] : null}
-              />
+              <div key={q.key} className="flex items-center justify-between gap-4 py-2">
+                <p className="flex-1 text-sm text-cri-charcoal">{q.label}</p>
+                <div className="w-[120px] shrink-0">
+                  <Speedometer
+                    size="sm"
+                    showLabel={false}
+                    label={q.label}
+                    value={has ? a.behaviourByQuestion[q.key] : null}
+                  />
+                </div>
+              </div>
             ))}
           </div>
 
@@ -236,12 +241,20 @@ export function CompanyReport({
           {kind === "contractor" ? (
             <>
               <SectionTitle>Site readiness</SectionTitle>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-                <Speedometer size="sm" label="Site readiness" value={has ? a.projectReadiness : null} />
+              <div className="flex items-center justify-between gap-4 py-2">
+                <p className="flex-1 text-sm text-cri-charcoal">Was the site ready for your stage of works?</p>
+                <div className="w-[120px] shrink-0">
+                  <Speedometer
+                    size="sm"
+                    showLabel={false}
+                    label="Site readiness"
+                    value={has ? a.projectReadiness : null}
+                  />
+                </div>
               </div>
               <p className="mt-1.5 flex gap-1.5 text-xs text-cri-steel">
                 <span aria-hidden>ⓘ</span>
-                <span>Whether the site/project was ready for the contractor&apos;s stage — separate from how the client behaved.</span>
+                <span>About the site/project, not the client — separate from how the client behaved, and not part of the behaviour score.</span>
               </p>
             </>
           ) : null}

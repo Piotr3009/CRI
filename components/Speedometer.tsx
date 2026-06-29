@@ -27,12 +27,14 @@ export function Speedometer({
   icon,
   footnote,
   size = "md",
+  showLabel = true,
 }: {
   label: string;
   value: number | null; // 0–10 or null (no data)
   icon?: string;
   footnote?: string; // small descriptive line under the value (e.g. payment depth)
   size?: "sm" | "md";
+  showLabel?: boolean; // hide the label when the caption is shown beside the gauge
 }) {
   const v = value ?? 5;
   const tip = polar(v, R - 14);
@@ -41,10 +43,12 @@ export function Speedometer({
 
   return (
     <div className={`rounded-xl border border-cri-border bg-cri-bg/60 text-center ${sm ? "p-3" : "p-4"}`}>
-      <p className={`mb-1 font-medium text-cri-steel ${sm ? "text-[11px] leading-tight" : "text-xs"}`}>
-        {icon ? <span className="mr-1">{icon}</span> : null}
-        {label}
-      </p>
+      {showLabel ? (
+        <p className={`mb-1 font-medium text-cri-steel ${sm ? "text-[11px] leading-tight" : "text-xs"}`}>
+          {icon ? <span className="mr-1">{icon}</span> : null}
+          {label}
+        </p>
+      ) : null}
       <svg viewBox="0 0 200 124" className={`mx-auto w-full ${sm ? "max-w-[116px]" : "max-w-[200px]"}`} role="img" aria-label={`${label}: ${hasData ? value : "no record yet"}`}>
         {hasData ? (
           <>
