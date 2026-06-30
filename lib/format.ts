@@ -44,3 +44,9 @@ export function toInitials(name?: string | null): string | null {
   if (parts.length === 0) return null;
   return parts.map((p) => `${p[0]!.toUpperCase()}.`).join("");
 }
+
+export function formatMonthYear(date: Date | string | null | undefined): string {
+  if (!date) return "";
+  const d = typeof date === "string" ? new Date(date) : date;
+  return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
+}

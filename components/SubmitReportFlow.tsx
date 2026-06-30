@@ -1410,7 +1410,7 @@ export function SubmitReportFlow({
 
           <Section
             title="Description & evidence"
-            description="Optional. Held privately for moderation — never published as written."
+            description="Optional. Held privately. A moderator may publish a short, anonymised summary in the public report."
           >
             <Field
               label="Describe the situation"
@@ -1759,7 +1759,7 @@ export function SubmitReportFlow({
 
           <Section
             title="Description & evidence"
-            description="Optional. Held privately for moderation — never published as written."
+            description="Optional. Held privately. A moderator may publish a short, anonymised summary in the public report."
           >
             <Field
               label="Describe the situation"

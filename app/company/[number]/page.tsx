@@ -34,6 +34,16 @@ function inScope(t: string): t is EntityType {
   return (RENDER_ORDER as string[]).includes(t);
 }
 
+// Moderated reporter comments for a set of report rows (only those a moderator
+// chose to publish via publicSummary), newest first by virtue of the query order.
+function toComments(
+  rows: { publicSummary?: string | null; createdAt?: Date | null }[],
+) {
+  return rows
+    .filter((r) => r.publicSummary && r.publicSummary.trim())
+    .map((r) => ({ text: r.publicSummary!.trim(), date: r.createdAt ?? null }));
+}
+
 export default async function CompanyReportPage({
   params,
   searchParams,
@@ -82,6 +92,7 @@ export default async function CompanyReportPage({
           aggregate={aggregateMainContractor(rows)}
           totalReports={rows.length}
           facts={facts}
+          comments={toComments(rows)}
           kind={et === "COMMERCIAL_CLIENT" ? "commercial" : "contractor"}
         />,
       );
@@ -99,6 +110,7 @@ export default async function CompanyReportPage({
             config.recommendKey,
           )}
           facts={facts}
+          comments={toComments(rows)}
         />,
       );
     }

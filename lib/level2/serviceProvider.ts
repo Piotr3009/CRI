@@ -17,6 +17,8 @@ const PRIOR_STRENGTH = 3;
 export type SpReportRow = Partial<Record<SpScoreKey, number | null>> & {
   formalDispute?: "YES" | "NO" | "NOT_SURE" | null;
   contractValueGbp?: number | null;
+  createdAt?: Date;
+  publicSummary?: string | null;
 };
 
 export type SpAggregate = {

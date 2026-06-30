@@ -68,6 +68,7 @@ export type McReportRow = {
   projectReadinessScore: number | null; // 1–10
   contractValueGbp: number | null;
   publicArea: string;
+  publicSummary: string | null;
 };
 
 export type McAggregate = {

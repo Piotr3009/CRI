@@ -9,6 +9,7 @@ import type { McAggregate } from "@/lib/level2/mainContractor";
 import { BEHAVIOUR_QUESTIONS } from "@/lib/behaviourQuestions";
 import type { CompanyFacts } from "@/lib/companiesHouse";
 import type { CompanyAtom } from "@/lib/level2/atom";
+import { formatMonthYear } from "@/lib/format";
 
 const RISK_TEXT: Record<RiskLevel, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 
@@ -55,12 +56,14 @@ export function CompanyReport({
   aggregate: a,
   totalReports,
   facts,
+  comments,
   kind = "contractor",
 }: {
   number: string;
   aggregate: McAggregate;
   totalReports: number;
   facts: CompanyFacts | null;
+  comments: { text: string; date: Date | null }[];
   kind?: "contractor" | "commercial";
 }) {
   const [atom, setAtom] = useState<CompanyAtom | null>(null);
@@ -348,6 +351,27 @@ export function CompanyReport({
             <p className="py-2 text-sm text-cri-steel">Filing health is unavailable right now.</p>
           )}
         </div>
+
+        {comments.length > 0 ? (
+          <div className="border-t border-cri-border px-6 py-5 sm:px-8">
+            <SectionTitle>What reporters said</SectionTitle>
+            <div className="mt-3 space-y-3">
+              {comments.map((c, i) => (
+                <div
+                  key={i}
+                  className="rounded-lg border border-cri-border bg-cri-bg/40 px-4 py-3"
+                >
+                  <p className="text-sm text-cri-charcoal">{c.text}</p>
+                  {c.date ? (
+                    <p className="mt-1 text-xs text-cri-steel">
+                      {formatMonthYear(c.date)}
+                    </p>
+                  ) : null}
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {/* Footer */}
         <div className="border-t border-cri-border bg-cri-bg/60 px-6 py-4 text-xs text-cri-steel sm:px-8">

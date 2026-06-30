@@ -257,6 +257,7 @@ export async function getMainContractorReportRows(
     },
     select: {
       createdAt: true,
+      publicSummary: true,
       paymentScore: true,
       communicationScore: true,
       behaviourExtraWorkNoCost: true,
@@ -285,6 +286,7 @@ export async function getMainContractorReportRows(
 
   return rows.map((r) => ({
     createdAt: r.createdAt,
+    publicSummary: r.publicSummary,
     paymentScore: r.paymentScore,
     communicationScore: r.communicationScore,
     behaviourExtraWorkNoCost: r.behaviourExtraWorkNoCost,
@@ -372,6 +374,8 @@ export async function getServiceProviderReportRows(
       arWouldRecommendScore: true,
       formalDispute: true,
       contractValueGbp: true,
+      createdAt: true,
+      publicSummary: true,
     },
   });
   return rows;
