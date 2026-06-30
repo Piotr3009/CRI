@@ -77,3 +77,33 @@ export async function updateUserRole(
 ): Promise<User> {
   return prisma.user.update({ where: { id: userId }, data: { role } });
 }
+
+/** Reports submitted by this user, newest first. */
+export async function getReportsByUser(userId: string) {
+  return prisma.riskReport.findMany({
+    where: { reporterId: userId },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
+/**
+ * GDPR erasure of the application data for a user:
+ *  - anonymises their submitted reports (keeps the report content/scores, strips
+ *    the reporter's personal details), then
+ *  - deletes the User row (reporterId on their reports auto-nulls via SetNull).
+ *
+ * Deleting the Supabase auth account is done separately by the caller (needs the
+ * service-role client).
+ */
+export async function anonymiseAndDeleteUser(userId: string): Promise<void> {
+  await prisma.riskReport.updateMany({
+    where: { reporterId: userId },
+    data: {
+      reporterCompanyName: "Anonymised",
+      reporterContactName: "Anonymised",
+      reporterEmail: "anonymised@redacted.invalid",
+      reporterPhone: null,
+    },
+  });
+  await prisma.user.delete({ where: { id: userId } });
+}

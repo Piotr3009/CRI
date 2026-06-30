@@ -77,6 +77,12 @@ export function AuthMenu({
       return (
         <div className="mt-1 rounded-lg border border-cri-border p-2">
           <p className="truncate px-1 text-xs text-cri-steel">{email}</p>
+          <Link
+            href="/account"
+            className="mt-1.5 block w-full rounded-lg bg-cri-bg px-3 py-2 text-center text-sm font-medium text-cri-charcoal hover:bg-black/5"
+          >
+            My account
+          </Link>
           <button
             type="button"
             onClick={handleLogout}
@@ -106,6 +112,13 @@ export function AuthMenu({
               onClick={() => setMenuOpen(false)}
             />
             <div className="absolute right-0 z-40 mt-2 w-44 rounded-xl border border-cri-border bg-white p-1.5 shadow-card-hover">
+              <Link
+                href="/account"
+                onClick={() => setMenuOpen(false)}
+                className="block w-full rounded-lg px-3 py-2 text-left text-sm font-medium text-cri-charcoal hover:bg-cri-bg"
+              >
+                My account
+              </Link>
               <button
                 type="button"
                 onClick={handleLogout}
