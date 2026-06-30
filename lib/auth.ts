@@ -1,44 +1,39 @@
 /**
- * ⚠️ PLACEHOLDER ADMIN GATE — NOT PRODUCTION AUTH ⚠️
+ * Admin access control, backed by real Supabase accounts and the User.role enum.
  *
- * This is an MVP stub so the /admin moderation dashboard is not left wide open.
- * It uses a single shared password (env `ADMIN_PASSWORD`) and stores a hashed
- * session token in an httpOnly cookie. It does NOT provide real user accounts,
- * roles, rate-limiting, CSRF protection or audit logging.
+ * A user reaches the moderation area only if their application `User` row has
+ * role ADMIN or SUPER_ADMIN. SUPER_ADMIN additionally unlocks owner-only data
+ * (e.g. pay-per-report revenue) — gate those bits with `isSuperAdmin()`.
  *
- * TODO(before production): replace with a proper auth provider (e.g. NextAuth /
- * Auth.js, Clerk, Lucia) and per-user ADMIN roles backed by the `User` model.
+ * Promoting the first SUPER_ADMIN is a manual database step (see
+ * migration-super-admin.sql):
+ *   UPDATE "User" SET role = 'SUPER_ADMIN' WHERE email = 'you@example.com';
  */
 
-import { cookies } from "next/headers";
-import crypto from "crypto";
+import type { User } from "@prisma/client";
+import { getCurrentUser } from "@/lib/user";
 
-export const ADMIN_COOKIE = "cri_admin";
-
-// Falls back to a clearly-non-secret default so local dev works out of the box.
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "cri-admin-demo";
-
-/** Hashed token stored in the cookie (so the raw password is never stored). */
-function sessionToken(): string {
-  return crypto
-    .createHash("sha256")
-    .update(`cri-admin:${ADMIN_PASSWORD}`)
-    .digest("hex");
+/** True for any admin tier (ADMIN or SUPER_ADMIN). */
+export function isAdminRole(role: User["role"]): boolean {
+  return role === "ADMIN" || role === "SUPER_ADMIN";
 }
 
-export function verifyAdminPassword(input: string): boolean {
-  // Constant-time-ish comparison for the shared password.
-  const a = Buffer.from(input);
-  const b = Buffer.from(ADMIN_PASSWORD);
-  if (a.length !== b.length) return false;
-  return crypto.timingSafeEqual(a, b);
+/** True only for the owner tier. */
+export function isSuperAdmin(
+  user: Pick<User, "role"> | null | undefined,
+): boolean {
+  return user?.role === "SUPER_ADMIN";
 }
 
-export function adminSessionToken(): string {
-  return sessionToken();
-}
-
-export function isAdminAuthenticated(): boolean {
-  const cookie = cookies().get(ADMIN_COOKIE)?.value;
-  return !!cookie && cookie === sessionToken();
+/**
+ * The signed-in user if they may access the admin area, else null.
+ *
+ * Returns null both when nobody is signed in and when the signed-in user lacks
+ * an admin role — callers that need to tell those apart (e.g. to show "sign in"
+ * vs "no access") should call getCurrentUser() themselves and use isAdminRole().
+ */
+export async function getAdminUser(): Promise<User | null> {
+  const user = await getCurrentUser();
+  if (!user) return null;
+  return isAdminRole(user.role) ? user : null;
 }

@@ -35,10 +35,11 @@ export function AdminReportTable({ reports }: { reports: RiskReport[] }) {
 
   return (
     <div className="card overflow-x-auto shadow-card">
-      <table className="w-full min-w-[860px] text-left text-sm">
+      <table className="w-full min-w-[980px] text-left text-sm">
         <thead>
           <tr className="border-b border-cri-border text-xs uppercase tracking-wide text-cri-steel">
             <th className="px-4 py-3 font-medium">Entity</th>
+            <th className="px-4 py-3 font-medium">Reporter</th>
             <th className="px-4 py-3 font-medium">Area</th>
             <th className="px-4 py-3 font-medium">Scores</th>
             <th className="px-4 py-3 font-medium">Overall</th>
@@ -59,6 +60,14 @@ export function AdminReportTable({ reports }: { reports: RiskReport[] }) {
                 <p className="font-medium text-cri-charcoal">{adminLabel(r)}</p>
                 <p className="text-xs text-cri-steel">
                   {ENTITY_TYPE_LABELS[r.entityType]}
+                </p>
+              </td>
+              <td className="px-4 py-3">
+                <p className="font-medium text-cri-charcoal">
+                  {r.reporterCompanyName}
+                </p>
+                <p className="text-xs text-cri-steel">
+                  {r.reporterContactName}
                 </p>
               </td>
               <td className="px-4 py-3 text-cri-steel">{r.publicArea}</td>

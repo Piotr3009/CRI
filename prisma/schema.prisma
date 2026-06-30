@@ -17,6 +17,7 @@ datasource db {
 enum UserRole {
   CONTRACTOR
   ADMIN
+  SUPER_ADMIN
 }
 
 enum VerifiedStatus {

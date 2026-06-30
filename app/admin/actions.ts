@@ -1,6 +1,5 @@
 "use server";
 
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import type {
@@ -8,12 +7,7 @@ import type {
   ModerationStatus,
   Visibility,
 } from "@prisma/client";
-import {
-  ADMIN_COOKIE,
-  adminSessionToken,
-  isAdminAuthenticated,
-  verifyAdminPassword,
-} from "@/lib/auth";
+import { getAdminUser } from "@/lib/auth";
 import {
   updateReportEvidenceStatus,
   updateReportModerationStatus,
@@ -39,32 +33,11 @@ const MODERATION_VALUES: ModerationStatus[] = [
   "DISPUTED",
 ];
 
-// --- Auth (MVP placeholder, see lib/auth.ts) -------------------------------
+// --- Moderation mutations (all require an admin account) -------------------
 
-export async function loginAdminAction(formData: FormData) {
-  const password = String(formData.get("password") ?? "");
-  if (!verifyAdminPassword(password)) {
-    redirect("/admin?error=1");
-  }
-  cookies().set(ADMIN_COOKIE, adminSessionToken(), {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    path: "/",
-    maxAge: 60 * 60 * 8, // 8 hours
-  });
-  redirect("/admin");
-}
-
-export async function logoutAdminAction() {
-  cookies().delete(ADMIN_COOKIE);
-  redirect("/admin");
-}
-
-// --- Moderation mutations (all require admin auth) -------------------------
-
-function requireAdmin() {
-  if (!isAdminAuthenticated()) redirect("/admin");
+async function requireAdmin() {
+  const user = await getAdminUser();
+  if (!user) redirect("/admin");
 }
 
 function revalidateReport(id: string) {
@@ -75,7 +48,7 @@ function revalidateReport(id: string) {
 }
 
 export async function moderateAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const status = String(formData.get("status") ?? "");
   if (!id || !MODERATION_VALUES.includes(status as ModerationStatus)) return;
@@ -84,7 +57,7 @@ export async function moderateAction(formData: FormData) {
 }
 
 export async function setEvidenceStatusAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const value = String(formData.get("evidenceStatus") ?? "");
   if (!id || !EVIDENCE_VALUES.includes(value as EvidenceStatus)) return;
@@ -93,7 +66,7 @@ export async function setEvidenceStatusAction(formData: FormData) {
 }
 
 export async function setVisibilityAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const value = String(formData.get("visibility") ?? "");
   if (!id || !VISIBILITY_VALUES.includes(value as Visibility)) return;
@@ -102,7 +75,7 @@ export async function setVisibilityAction(formData: FormData) {
 }
 
 export async function savePublicSummaryAction(formData: FormData) {
-  requireAdmin();
+  await requireAdmin();
   const id = String(formData.get("id") ?? "");
   const summary = String(formData.get("publicSummary") ?? "").trim();
   if (!id) return;

@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { isAdminRole } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/user";
 import { getAdminReportById } from "@/lib/reports";
 import { AdminReportDetail } from "@/components/AdminReportDetail";
 
@@ -17,13 +18,14 @@ export default async function AdminReportDetailPage({
 }: {
   params: { id: string };
 }) {
-  // Gate: never render private report data without admin auth.
-  if (!isAdminAuthenticated()) {
+  // Gate: never render private report data without an admin account.
+  const currentUser = await getCurrentUser();
+  if (!currentUser || !isAdminRole(currentUser.role)) {
     return (
       <div className="mx-auto max-w-md px-4 py-20 text-center sm:px-6">
         <p className="text-cri-steel">This area is restricted.</p>
         <Link href="/admin" className="btn-primary mt-4">
-          Go to admin sign in
+          Go to admin
         </Link>
       </div>
     );

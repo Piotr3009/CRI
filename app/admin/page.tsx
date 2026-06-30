@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import type { ModerationStatus } from "@prisma/client";
-import { isAdminAuthenticated } from "@/lib/auth";
+import { isAdminRole } from "@/lib/auth";
+import { getCurrentUser } from "@/lib/user";
 import {
   getAdminReports,
   getAdminReportCounts,
@@ -9,8 +10,7 @@ import {
 import { getVisitStats } from "@/lib/visits";
 import { MODERATION_STATUS_LABELS } from "@/lib/constants";
 import { AdminReportTable } from "@/components/AdminReportTable";
-import { ShieldIcon, LockIcon } from "@/components/Icons";
-import { loginAdminAction, logoutAdminAction } from "./actions";
+import { ShieldIcon } from "@/components/Icons";
 
 export const metadata: Metadata = {
   title: "Admin — Moderation",
@@ -26,7 +26,7 @@ const TABS: ModerationStatus[] = [
   "REJECTED",
 ];
 
-function LoginScreen({ error }: { error?: boolean }) {
+function AccessScreen({ signedIn }: { signedIn: boolean }) {
   return (
     <div className="mx-auto max-w-md px-4 py-20 sm:px-6">
       <div className="card p-8 shadow-card">
@@ -38,39 +38,28 @@ function LoginScreen({ error }: { error?: boolean }) {
             Admin moderation
           </h1>
         </div>
-        <p className="mt-3 text-sm text-cri-steel">
-          Restricted area. Sign in to moderate reports.
-        </p>
 
-        {error ? (
-          <p className="mt-4 rounded-lg border border-cri-amber/40 bg-cri-amber-light p-3 text-sm text-cri-amber-dark">
-            Incorrect password. Please try again.
-          </p>
-        ) : null}
-
-        <form action={loginAdminAction} className="mt-5 space-y-3">
-          <div>
-            <label htmlFor="password" className="label">
-              Admin password
-            </label>
-            <input
-              id="password"
-              name="password"
-              type="password"
-              className="input"
-              autoComplete="current-password"
-            />
-          </div>
-          <button type="submit" className="btn-primary w-full">
-            Sign in
-          </button>
-        </form>
-
-        <p className="mt-4 flex items-start gap-2 text-xs text-cri-steel">
-          <LockIcon className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-          MVP placeholder gate. Replace with a real auth provider before
-          production (see lib/auth.ts).
-        </p>
+        {signedIn ? (
+          <>
+            <p className="mt-3 text-sm text-cri-steel">
+              Your account doesn&apos;t have moderation access.
+            </p>
+            <p className="mt-2 text-sm text-cri-steel">
+              If this is a mistake, ask the site owner to grant your account an
+              admin role.
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="mt-3 text-sm text-cri-steel">
+              Restricted area. Sign in with an authorised account using the
+              account menu in the top bar, then return to this page.
+            </p>
+            <Link href="/" className="btn-primary mt-5 inline-flex">
+              Go to sign in
+            </Link>
+          </>
+        )}
       </div>
     </div>
   );
@@ -79,10 +68,11 @@ function LoginScreen({ error }: { error?: boolean }) {
 export default async function AdminPage({
   searchParams,
 }: {
-  searchParams: { status?: string; error?: string };
+  searchParams: { status?: string };
 }) {
-  if (!isAdminAuthenticated()) {
-    return <LoginScreen error={searchParams.error === "1"} />;
+  const currentUser = await getCurrentUser();
+  if (!currentUser || !isAdminRole(currentUser.role)) {
+    return <AccessScreen signedIn={!!currentUser} />;
   }
 
   const activeStatus: ModerationStatus = TABS.includes(
@@ -108,11 +98,6 @@ export default async function AdminPage({
             Review, score and control the visibility of submitted reports.
           </p>
         </div>
-        <form action={logoutAdminAction}>
-          <button type="submit" className="btn-ghost">
-            Sign out
-          </button>
-        </form>
       </div>
 
       {/* Visit stats */}
