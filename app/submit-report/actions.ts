@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { createRiskReport } from "@/lib/reports";
 import { scoreFromDelay } from "@/lib/level2/mainContractor";
+import { getCurrentUser } from "@/lib/user";
 
 // ---------------------------------------------------------------------------
 // Shared validation pieces — all client input is untrusted (Zod re-validates).
@@ -281,6 +282,13 @@ function commonComputed(d: CommonInput) {
 export async function submitPrivateClientReport(
   input: unknown,
 ): Promise<SubmitState> {
+  const reporter = await getCurrentUser();
+  if (!reporter) {
+    return {
+      ok: false,
+      formError: "You must be signed in to submit a report.",
+    };
+  }
   const parsed = privateClientSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -314,6 +322,13 @@ export async function submitPrivateClientReport(
 export async function submitCommercialClientReport(
   input: unknown,
 ): Promise<SubmitState> {
+  const reporter = await getCurrentUser();
+  if (!reporter) {
+    return {
+      ok: false,
+      formError: "You must be signed in to submit a report.",
+    };
+  }
   const parsed = commercialClientSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -349,6 +364,13 @@ export async function submitCommercialClientReport(
 export async function submitMainContractorReport(
   input: unknown,
 ): Promise<SubmitState> {
+  const reporter = await getCurrentUser();
+  if (!reporter) {
+    return {
+      ok: false,
+      formError: "You must be signed in to submit a report.",
+    };
+  }
   const parsed = mainContractorSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -517,6 +539,13 @@ const projectManagerSchema = z
 export async function submitProjectManagerReport(
   input: unknown,
 ): Promise<SubmitState> {
+  const reporter = await getCurrentUser();
+  if (!reporter) {
+    return {
+      ok: false,
+      formError: "You must be signed in to submit a report.",
+    };
+  }
   const parsed = projectManagerSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -636,6 +665,13 @@ const quantitySurveyorSchema = z.object({
 export async function submitQuantitySurveyorReport(
   input: unknown,
 ): Promise<SubmitState> {
+  const reporter = await getCurrentUser();
+  if (!reporter) {
+    return {
+      ok: false,
+      formError: "You must be signed in to submit a report.",
+    };
+  }
   const parsed = quantitySurveyorSchema.safeParse(input);
   if (!parsed.success) {
     return {
@@ -765,6 +801,13 @@ const architectPmSchema = z
 export async function submitArchitectPmReport(
   input: unknown,
 ): Promise<SubmitState> {
+  const reporter = await getCurrentUser();
+  if (!reporter) {
+    return {
+      ok: false,
+      formError: "You must be signed in to submit a report.",
+    };
+  }
   const parsed = architectPmSchema.safeParse(input);
   if (!parsed.success) {
     return {

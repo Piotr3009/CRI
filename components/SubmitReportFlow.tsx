@@ -13,7 +13,6 @@ import {
   PROJECT_TYPE_LABELS,
   PROJECT_STATUS_LABELS,
   optionsFromLabels,
-  TRADE_TYPE_OPTIONS,
 } from "@/lib/constants";
 import { CompanyAutocomplete } from "@/components/CompanyAutocomplete";
 import { BEHAVIOUR_QUESTIONS, type BehaviourKey } from "@/lib/behaviourQuestions";
@@ -82,8 +81,6 @@ const SP_CONSENT_ITEMS = CONSENT_ITEMS.filter(
   (c) => c.key !== "allPaymentsDeclared",
 );
 
-
-const EMAIL_RE = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 
 // ---------------------------------------------------------------------------
 // Types
@@ -302,15 +299,29 @@ function ScoreList({
   );
 }
 
-export function SubmitReportFlow() {
+export function SubmitReportFlow({
+  reporterCompanyName: companyNameProp,
+  reporterEmail: emailProp,
+  reporterPhone: phoneProp,
+  reporterTradeType: tradeTypeProp,
+  defaultContactName,
+}: {
+  reporterCompanyName: string;
+  reporterEmail: string;
+  reporterPhone: string;
+  reporterTradeType: string;
+  defaultContactName: string;
+}) {
   const [selectedType, setSelectedType] = useState<string | null>(null);
 
   // Reporter (manual for now — comes from the account once auth ships)
-  const [reporterCompanyName, setReporterCompanyName] = useState("");
-  const [reporterContactName, setReporterContactName] = useState("");
-  const [reporterEmail, setReporterEmail] = useState("");
-  const [reporterPhone, setReporterPhone] = useState("");
-  const [reporterTradeType, setReporterTradeType] = useState("");
+  // Reporter identity comes from the signed-in account (read-only). Only the
+  // name of the person actually filing this report is editable.
+  const [reporterCompanyName] = useState(companyNameProp);
+  const [reporterContactName, setReporterContactName] = useState(defaultContactName);
+  const [reporterEmail] = useState(emailProp);
+  const [reporterPhone] = useState(phoneProp);
+  const [reporterTradeType] = useState(tradeTypeProp);
 
   // Entity (private = initials; commercial = company name + full address)
   const [clientInitials, setClientInitials] = useState("");
@@ -462,12 +473,7 @@ export function SubmitReportFlow() {
   function validate(): Errors {
     const e: Errors = {};
 
-    if (!reporterCompanyName.trim()) e.reporterCompanyName = "Required";
     if (!reporterContactName.trim()) e.reporterContactName = "Required";
-    if (!reporterEmail.trim()) e.reporterEmail = "Required";
-    else if (!EMAIL_RE.test(reporterEmail.trim()))
-      e.reporterEmail = "Enter a valid email";
-    if (!reporterTradeType.trim()) e.reporterTradeType = "Required";
 
     // Project location + type — needed by every survey type.
     if (!projectCity.trim()) e.projectCity = "Required";
@@ -598,10 +604,7 @@ export function SubmitReportFlow() {
 
   // Ordered ids for "scroll to first problem".
   const errorOrder: string[] = [
-    "reporterCompanyName",
     "reporterContactName",
-    "reporterEmail",
-    "reporterTradeType",
     "entityName",
     "spReporterRole",
     "clientInitials",
@@ -817,56 +820,37 @@ export function SubmitReportFlow() {
   // --- Render ----------------------------------------------------------------
   return (
     <div className="space-y-6">
-      {/* Step 1 — reporter (temporary manual block) */}
+      {/* Step 1 — reporter (from signed-in account) */}
       <Section
         title="Your details"
-        description="Temporary — these will come from your verified account once sign-in is live. Private, never shown publicly."
+        description="Pulled from your signed-in account — kept private, never shown publicly."
       >
-        <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="Your company name" required error={errors.reporterCompanyName}>
-            <input
-              id="reporterCompanyName"
-              className={inp(errors.reporterCompanyName)}
-              value={reporterCompanyName}
-              onChange={(e) => setReporterCompanyName(e.target.value)}
-            />
-          </Field>
-          <Field label="Contact name" required error={errors.reporterContactName}>
+        <div className="rounded-lg border border-cri-border bg-cri-bg/50 px-4 py-3 text-sm">
+          <span className="text-cri-steel">Reporting as: </span>
+          <span className="font-medium text-cri-charcoal">
+            {reporterCompanyName || "—"}
+          </span>
+          {reporterEmail ? (
+            <span className="text-cri-steel"> · {reporterEmail}</span>
+          ) : null}
+        </div>
+
+        <p className="mt-3 text-xs text-cri-steel">
+          Your identity stays private — the reported company never sees it. Each
+          company&apos;s score is the average of all reports.
+        </p>
+
+        <div className="mt-4 max-w-sm">
+          <Field
+            label="Name of person filing this report"
+            required
+            error={errors.reporterContactName}
+          >
             <input
               id="reporterContactName"
               className={inp(errors.reporterContactName)}
               value={reporterContactName}
               onChange={(e) => setReporterContactName(e.target.value)}
-            />
-          </Field>
-          <Field label="Email" required error={errors.reporterEmail}>
-            <input
-              id="reporterEmail"
-              type="email"
-              className={inp(errors.reporterEmail)}
-              value={reporterEmail}
-              onChange={(e) => setReporterEmail(e.target.value)}
-            />
-          </Field>
-          <Field label="Phone">
-            <input
-              className={inputClass}
-              value={reporterPhone}
-              onChange={(e) => setReporterPhone(e.target.value)}
-            />
-          </Field>
-          <Field
-            label="Trade type"
-            required
-            error={errors.reporterTradeType}
-          >
-            <Select
-              id="reporterTradeType"
-              value={reporterTradeType}
-              onChange={setReporterTradeType}
-              options={TRADE_TYPE_OPTIONS}
-              placeholder="Select…"
-              error={errors.reporterTradeType}
             />
           </Field>
         </div>
