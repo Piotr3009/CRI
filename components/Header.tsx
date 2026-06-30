@@ -1,6 +1,8 @@
 import Link from "next/link";
 import { ShieldIcon } from "./Icons";
 import { AuthMenu } from "./auth/AuthMenu";
+import { getCurrentUser } from "@/lib/user";
+import { isAdminRole } from "@/lib/auth";
 
 const NAV_LINKS = [
   { href: "/#how-it-works", label: "How It Works" },
@@ -28,7 +30,10 @@ function Logo() {
   );
 }
 
-export function Header() {
+export async function Header() {
+  const user = await getCurrentUser();
+  const isAdmin = !!user && isAdminRole(user.role);
+
   return (
     <header className="sticky top-0 z-40 border-b border-cri-border bg-cri-bg/90 backdrop-blur">
       <div className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3 sm:px-6">
@@ -47,7 +52,16 @@ export function Header() {
           ))}
         </nav>
 
-        <div className="hidden md:block">
+        <div className="hidden items-center gap-3 md:flex">
+          {isAdmin && (
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-1.5 rounded-lg bg-cri-green/10 px-3 py-1.5 text-sm font-semibold text-cri-green transition-colors hover:bg-cri-green/20"
+            >
+              <ShieldIcon className="h-4 w-4" />
+              Admin
+            </Link>
+          )}
           <AuthMenu />
         </div>
 
@@ -75,6 +89,15 @@ export function Header() {
                 {link.label}
               </Link>
             ))}
+            {isAdmin && (
+              <Link
+                href="/admin"
+                className="mt-1 flex items-center gap-1.5 rounded-lg bg-cri-green/10 px-3 py-2 text-sm font-semibold text-cri-green hover:bg-cri-green/20"
+              >
+                <ShieldIcon className="h-4 w-4" />
+                Admin
+              </Link>
+            )}
             <div className="mt-1">
               <AuthMenu variant="mobile" />
             </div>
