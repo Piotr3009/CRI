@@ -85,7 +85,7 @@ export function Speedometer({
         <p className={`-mt-1 font-medium text-cri-steel ${s.nodata}`}>No record yet</p>
       )}
       {footnote ? (
-        <p className="mt-1 text-[11px] leading-snug text-cri-steel">{footnote}</p>
+        <p className="mt-1 text-xs leading-snug text-cri-steel">{footnote}</p>
       ) : null}
     </div>
   );

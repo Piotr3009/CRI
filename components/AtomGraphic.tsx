@@ -31,14 +31,19 @@ function statusColor(statusLabel: string): string {
   }
 }
 
-/** "TARASEK, Piotr" -> "Piotr Tarasek". */
-function displayName(raw: string): string {
+/** "TARASEK, Piotr" -> "Piotr Tarasek" (full, no truncation). */
+function fullName(raw: string): string {
   let s = raw.replace(TITLE_RE, " ").replace(/\s+/g, " ").trim();
   if (s.includes(",")) {
     const [sur, ...rest] = s.split(",");
     s = `${rest.join(" ").trim()} ${sur.trim()}`.trim();
   }
-  s = s.toLowerCase().replace(/(^|\s)([a-z])/g, (_m, sp, c) => sp + c.toUpperCase());
+  return s.toLowerCase().replace(/(^|\s)([a-z])/g, (_m, sp, c) => sp + c.toUpperCase());
+}
+
+/** Short form for the small nucleus circle, where long names don't fit. */
+function displayName(raw: string): string {
+  const s = fullName(raw);
   return s.length > 16 ? `${s.slice(0, 15)}…` : s;
 }
 
@@ -122,7 +127,7 @@ export function AtomGraphic({
           </button>
           {linkers.map((p) => (
             <button key={p.name} type="button" onClick={() => setSelected(p.name)} className={chip(sel === p.name)}>
-              {displayName(p.name)}
+              {fullName(p.name)}
             </button>
           ))}
         </div>
@@ -176,6 +181,15 @@ export function AtomGraphic({
         </svg>
       </div>
 
+      {state === "done" && nucleusNames.length > 0 ? (
+        <p className="mt-2 text-center text-sm">
+          <span className="text-cri-steel">{sel ? "Showing " : ownerNames.length ? "Owners: " : "People: "}</span>
+          <span className="font-medium text-cri-charcoal">
+            {Array.from(new Set(nucleusNames.map(fullName))).join(", ")}
+          </span>
+        </p>
+      ) : null}
+
       {state === "loading" ? (
         <p className="mt-2 text-sm text-cri-steel">Loading connections from Companies House…</p>
       ) : state === "error" ? (
@@ -183,19 +197,26 @@ export function AtomGraphic({
       ) : connected.length === 0 ? (
         <p className="mt-2 text-sm text-cri-steel">No connected companies on record.</p>
       ) : (
-        <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1.5 sm:grid-cols-2">
+        <div className="mt-3 grid grid-cols-1 gap-x-6 gap-y-1 sm:grid-cols-2">
           {connected.map((c: AtomCompany) => (
-            <div key={c.number} className="flex items-center gap-2 text-sm">
+            <a
+              key={c.number}
+              href={`/company/${c.number}`}
+              className="-mx-1 flex items-center gap-2 rounded px-1 py-0.5 text-sm hover:bg-cri-bg"
+            >
               <span
                 className="h-2.5 w-2.5 shrink-0 rounded-full"
                 style={{ backgroundColor: c.insolvent ? "#D64545" : statusColor(c.statusLabel) }}
                 aria-hidden
               />
-              <span className="truncate font-medium text-cri-charcoal">{c.name}</span>
+              <span className="min-w-0">
+                <span className="block truncate font-medium text-cri-charcoal">{c.name}</span>
+                <span className="block font-mono text-xs text-cri-steel">{c.number}</span>
+              </span>
               <span className="ml-auto shrink-0 text-xs" style={{ color: c.insolvent ? "#D64545" : "#6B7280" }}>
                 {c.insolvent ? "Insolvency" : c.statusLabel}
               </span>
-            </div>
+            </a>
           ))}
         </div>
       )}

@@ -22,9 +22,6 @@ function isoDate(s: string | null): string {
     ? s
     : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
-function pctOf(count: number, total: number): string {
-  return total === 0 ? "—" : `${count} of ${total} (${Math.round((count / total) * 100)}%)`;
-}
 function level(ratio: number, hi: number, mid: number): RiskLevel {
   if (ratio >= hi) return "HIGH";
   if (ratio >= mid) return "MEDIUM";
@@ -173,15 +170,7 @@ export function CompanyReport({
                   : undefined
               }
             />
-            <Speedometer
-              label="Behaviour"
-              value={has ? a.behaviour : null}
-              footnote={
-                has && a.wouldWorkAgainPct != null
-                  ? `${a.wouldWorkAgainPct}% would work with this client again`
-                  : undefined
-              }
-            />
+            <Speedometer label="Behaviour" value={has ? a.behaviour : null} />
           </div>
           <p className="mt-2 flex gap-1.5 text-xs text-cri-steel">
             <span aria-hidden>ⓘ</span>
@@ -262,7 +251,6 @@ export function CompanyReport({
           {/* Full breakdown — always shown */}
           <SectionTitle>Payment behaviour</SectionTitle>
           <Row label="Average payment delay" value={has && a.avgPaymentDelayDays != null ? `${a.avgPaymentDelayDays} days` : "No record yet"} />
-          <Row label="Reports saying paid late" value={has ? pctOf(a.reportsPaidLate, n) : "No record yet"} />
 
           {kind === "contractor" ? (
             <>
