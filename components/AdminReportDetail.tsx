@@ -299,6 +299,24 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
         </div>
       ) : null}
 
+      {/* Combined role — make it explicit when the reporter held more than one
+          role (e.g. a PM who also acted as QS), not just implied by two blocks. */}
+      {report.alsoActedAsQs || report.alsoActedAsPm ? (
+        <div className="card border-l-4 border-cri-green/50 p-4 shadow-card">
+          <p className="text-sm font-medium text-cri-charcoal">Combined role</p>
+          <p className="mt-0.5 text-xs text-cri-steel">
+            This reporter also acted as{" "}
+            {[
+              report.alsoActedAsPm ? "Project Manager" : null,
+              report.alsoActedAsQs ? "Quantity Surveyor" : null,
+            ]
+              .filter(Boolean)
+              .join(" and ")}
+            . Scores for each role are shown below.
+          </p>
+        </div>
+      ) : null}
+
       {/* Service-provider quality scores. Each block shows when its data exists,
           so a combined report (e.g. PM who also acted as QS) shows both. */}
       {report.pmWouldRecommendScore != null ? (
