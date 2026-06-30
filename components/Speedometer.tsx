@@ -21,6 +21,12 @@ function arc(v1: number, v2: number): string {
   return `M ${p1.x.toFixed(2)} ${p1.y.toFixed(2)} A ${R} ${R} 0 0 1 ${p2.x.toFixed(2)} ${p2.y.toFixed(2)}`;
 }
 
+const SIZES = {
+  xs: { pad: "p-2", label: "text-[10px] leading-tight", svg: "max-w-[88px]", value: "text-sm", unit: "text-[10px]", nodata: "text-[11px]" },
+  sm: { pad: "p-3", label: "text-[11px] leading-tight", svg: "max-w-[116px]", value: "text-lg", unit: "text-xs", nodata: "text-xs" },
+  md: { pad: "p-4", label: "text-xs", svg: "max-w-[200px]", value: "text-2xl", unit: "text-sm", nodata: "text-sm" },
+} as const;
+
 export function Speedometer({
   label,
   value,
@@ -33,23 +39,23 @@ export function Speedometer({
   value: number | null; // 0–10 or null (no data)
   icon?: string;
   footnote?: string; // small descriptive line under the value (e.g. payment depth)
-  size?: "sm" | "md";
+  size?: "xs" | "sm" | "md";
   showLabel?: boolean; // hide the label when the caption is shown beside the gauge
 }) {
   const v = value ?? 5;
   const tip = polar(v, R - 14);
   const hasData = value != null;
-  const sm = size === "sm";
+  const s = SIZES[size];
 
   return (
-    <div className={`rounded-xl border border-cri-border bg-cri-bg/60 text-center ${sm ? "p-3" : "p-4"}`}>
+    <div className={`rounded-xl border border-cri-border bg-cri-bg/60 text-center ${s.pad}`}>
       {showLabel ? (
-        <p className={`mb-1 font-medium text-cri-steel ${sm ? "text-[11px] leading-tight" : "text-xs"}`}>
+        <p className={`mb-1 font-medium text-cri-steel ${s.label}`}>
           {icon ? <span className="mr-1">{icon}</span> : null}
           {label}
         </p>
       ) : null}
-      <svg viewBox="0 0 200 124" className={`mx-auto w-full ${sm ? "max-w-[116px]" : "max-w-[200px]"}`} role="img" aria-label={`${label}: ${hasData ? value : "no record yet"}`}>
+      <svg viewBox="0 0 200 124" className={`mx-auto w-full ${s.svg}`} role="img" aria-label={`${label}: ${hasData ? value : "no record yet"}`}>
         {hasData ? (
           <>
             <path d={arc(0, 4)} fill="none" stroke="#D64545" strokeWidth="13" strokeLinecap="round" />
@@ -71,12 +77,12 @@ export function Speedometer({
         <circle cx={CX} cy={CY} r="6" fill={hasData ? "#1F2933" : "#9CA3AF"} />
       </svg>
       {hasData ? (
-        <p className={`-mt-1 font-bold text-cri-charcoal ${sm ? "text-lg" : "text-2xl"}`}>
+        <p className={`-mt-1 font-bold text-cri-charcoal ${s.value}`}>
           {value!.toFixed(1)}
-          <span className={`font-normal text-cri-steel ${sm ? "text-xs" : "text-sm"}`}>/10</span>
+          <span className={`font-normal text-cri-steel ${s.unit}`}>/10</span>
         </p>
       ) : (
-        <p className={`-mt-1 font-medium text-cri-steel ${sm ? "text-xs" : "text-sm"}`}>No record yet</p>
+        <p className={`-mt-1 font-medium text-cri-steel ${s.nodata}`}>No record yet</p>
       )}
       {footnote ? (
         <p className="mt-1 text-[11px] leading-snug text-cri-steel">{footnote}</p>

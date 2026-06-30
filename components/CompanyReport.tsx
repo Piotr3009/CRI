@@ -225,9 +225,9 @@ export function CompanyReport({
             {BEHAVIOUR_QUESTIONS.map((q) => (
               <div key={q.key} className="flex items-center justify-between gap-4 py-2">
                 <p className="flex-1 text-sm text-cri-charcoal">{q.label}</p>
-                <div className="w-[120px] shrink-0">
+                <div className="w-[92px] shrink-0">
                   <Speedometer
-                    size="sm"
+                    size="xs"
                     showLabel={false}
                     label={q.label}
                     value={has ? a.behaviourByQuestion[q.key] : null}
@@ -243,9 +243,9 @@ export function CompanyReport({
               <SectionTitle>Site readiness</SectionTitle>
               <div className="flex items-center justify-between gap-4 py-2">
                 <p className="flex-1 text-sm text-cri-charcoal">Was the site ready for your stage of works?</p>
-                <div className="w-[120px] shrink-0">
+                <div className="w-[92px] shrink-0">
                   <Speedometer
-                    size="sm"
+                    size="xs"
                     showLabel={false}
                     label="Site readiness"
                     value={has ? a.projectReadiness : null}
