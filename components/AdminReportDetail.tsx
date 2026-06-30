@@ -261,26 +261,6 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
         </div>
       </div>
 
-      {/* Scores — payment/dispute is meaningful for paying reports only */}
-      {!isSP ? (
-        <div className="card p-6 shadow-card">
-          <h2 className="text-base font-semibold text-cri-charcoal">
-            Risk scoring
-          </h2>
-          <dl className="mt-3">
-            <Row label="Payment Score">{report.paymentScore.toFixed(1)} / 10</Row>
-            <Row label="Dispute Risk">
-              <RiskBadge level={report.disputeRisk} />
-            </Row>
-            <Row label="Formal dispute / legal action">
-              {report.formalDispute
-                ? YES_NO_UNSURE_LABELS[report.formalDispute]
-                : "—"}
-            </Row>
-          </dl>
-        </div>
-      ) : null}
-
       {/* Behaviour — raw answers (paying reports only; SPs answer quality scores instead) */}
       {!isSP ? (
         <div className="card p-6 shadow-card">
@@ -360,6 +340,9 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
             </table>
           </div>
           <dl className="mt-4">
+            <Row label="Payment Score">
+              {report.paymentScore.toFixed(1)} / 10
+            </Row>
             <Row label="Average payment delay">
               {report.avgPaymentDelayDays != null
                 ? `${report.avgPaymentDelayDays} days`
@@ -403,6 +386,13 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
               </table>
             </div>
           ) : null}
+
+          {report.abandonedInvoices.length > 0 ? (
+            <p className="mt-2 text-xs text-cri-steel">
+              Invoice evidence download will be available once secure file
+              upload launches.
+            </p>
+          ) : null}
         </div>
       ) : null}
 
@@ -414,6 +404,11 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
             Main-contractor specifics (chain disputes).
           </p>
           <dl className="mt-3">
+            <Row label="Formal dispute / legal action">
+              {report.formalDispute
+                ? YES_NO_UNSURE_LABELS[report.formalDispute]
+                : "—"}
+            </Row>
             <Row label="Back-charges for unagreed defects">
               {report.backChargesUnagreed
                 ? BEHAVIOUR_ANSWER_LABELS[report.backChargesUnagreed]
