@@ -18,8 +18,8 @@ export default function SearchPage() {
           Look up a company
         </h1>
         <p className="mt-3 text-cri-steel">
-          First pick the role you want a report on, then search the company by name or director.
-          Each role asks different questions, so the report is tailored to it.
+          Search a company by name or director. We&apos;ll show you the roles we
+          hold reports on for that company, each tailored to its own questions.
         </p>
       </div>
 
