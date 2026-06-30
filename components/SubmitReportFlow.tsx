@@ -533,6 +533,14 @@ export function SubmitReportFlow() {
       if (!entityName.trim()) e.entityName = "Required";
       if (!spReporterRole.trim()) e.spReporterRole = "Required";
 
+      const spCv = Number(contractValueGbp);
+      if (contractValueGbp.trim() === "" || !Number.isInteger(spCv) || spCv <= 0) {
+        e.contractValueGbp = "Enter the approximate value";
+      }
+      if (courtDispute !== "YES" && courtDispute !== "NO") {
+        e.courtDispute = "Please answer";
+      }
+
       if (isArchitectPm) {
         AR_SCORES.forEach((q) => {
           const v = Number(arScores[q.key]);
@@ -711,6 +719,8 @@ export function SubmitReportFlow() {
         projectCity: projectCity.trim(),
         projectPostcode: projectPostcode.trim(),
         projectType,
+        contractValueGbp: Number(contractValueGbp),
+        courtDispute,
         issueDescription: issueDescription.trim(),
         evidenceTypes: evidence,
         consents: {
@@ -1548,6 +1558,38 @@ export function SubmitReportFlow() {
                   error={errors.projectType}
                 />
               </Field>
+              <Field
+                label="Approximate project value (£)"
+                required
+                error={errors.contractValueGbp}
+                hint="Roughly — e.g. 250000. Shown publicly as total project value across reviews."
+              >
+                <input
+                  id="contractValueGbp"
+                  type="number"
+                  min={0}
+                  className={inp(errors.contractValueGbp)}
+                  placeholder="e.g. 250000"
+                  value={contractValueGbp}
+                  onChange={(e) => setContractValueGbp(e.target.value)}
+                />
+              </Field>
+              <div id="courtDispute" className="sm:col-span-2">
+                <Field
+                  label="Did the engagement end in a formal dispute, adjudication, or court action?"
+                  required
+                  error={errors.courtDispute}
+                  hint="The final report shows only the number of disputes — no details."
+                >
+                  <Select
+                    value={courtDispute}
+                    onChange={setCourtDispute}
+                    options={YES_NO_OPTIONS}
+                    placeholder="Select…"
+                    error={errors.courtDispute}
+                  />
+                </Field>
+              </div>
             </div>
           </Section>
 

@@ -14,7 +14,10 @@ import type { SpScoreKey } from "@/lib/spScores";
 const PRIOR_MEAN = 5;
 const PRIOR_STRENGTH = 3;
 
-export type SpReportRow = Partial<Record<SpScoreKey, number | null>>;
+export type SpReportRow = Partial<Record<SpScoreKey, number | null>> & {
+  formalDispute?: "YES" | "NO" | "NOT_SURE" | null;
+  contractValueGbp?: number | null;
+};
 
 export type SpAggregate = {
   totalReports: number;
@@ -24,6 +27,12 @@ export type SpAggregate = {
   byScore: Record<string, number>;
   /** Gauge for the "would work again" score, or null when nobody answered. */
   wouldRecommend: number | null;
+  /** Reviews that reported a formal dispute / court action. */
+  formalDisputeReports: number;
+  /** Sum of project values across reviews that provided one. */
+  contractValueTotalGbp: number;
+  /** How many reviews provided a project value (denominator for the sum). */
+  contractValueReports: number;
 };
 
 function bayesian(scores: number[]): number {
@@ -55,5 +64,20 @@ export function aggregateServiceProvider(
     .filter((v): v is number => typeof v === "number");
   const wouldRecommend = recVals.length ? (byScore[recommendKey] ?? null) : null;
 
-  return { totalReports: rows.length, overall, byScore, wouldRecommend };
+  const formalDisputeReports = rows.filter((r) => r.formalDispute === "YES").length;
+  const contractValues = rows
+    .map((r) => r.contractValueGbp)
+    .filter((v): v is number => typeof v === "number" && v > 0);
+  const contractValueTotalGbp = contractValues.reduce((a, b) => a + b, 0);
+  const contractValueReports = contractValues.length;
+
+  return {
+    totalReports: rows.length,
+    overall,
+    byScore,
+    wouldRecommend,
+    formalDisputeReports,
+    contractValueTotalGbp,
+    contractValueReports,
+  };
 }

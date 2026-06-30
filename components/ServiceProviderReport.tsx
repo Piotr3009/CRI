@@ -16,6 +16,10 @@ function isoDate(s: string | null): string {
     : d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" });
 }
 
+function gbp(n: number): string {
+  return `£${n.toLocaleString("en-GB")}`;
+}
+
 function Row({ label, value, valueClass = "" }: { label: string; value: string; valueClass?: string }) {
   return (
     <div className="flex justify-between gap-4 border-b border-cri-border/60 py-2 text-sm last:border-0">
@@ -151,18 +155,45 @@ export function ServiceProviderReport({
             </span>
           </p>
 
-          {/* Score detail — one gauge per question; the average of these is the Overall gauge above */}
+          {/* Score detail — full question on the left, small gauge with the answer on the right, row by row */}
           <SectionTitle>Score detail</SectionTitle>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <div className="divide-y divide-cri-border/60">
             {config.scores.map((s) => (
-              <Speedometer
-                key={s.key}
-                size="sm"
-                label={s.gaugeLabel}
-                value={has ? (a.byScore[s.key] ?? null) : null}
-              />
+              <div key={s.key} className="flex items-center justify-between gap-4 py-2">
+                <p className="flex-1 text-sm text-cri-charcoal">{s.label}</p>
+                <div className="w-[92px] shrink-0">
+                  <Speedometer
+                    size="xs"
+                    showLabel={false}
+                    label={s.label}
+                    value={has ? (a.byScore[s.key] ?? null) : null}
+                  />
+                </div>
+              </div>
             ))}
           </div>
+
+          {/* Project value & disputes — hard facts from the reviews */}
+          <SectionTitle>Project &amp; disputes</SectionTitle>
+          <Row
+            label="Total project value"
+            value={
+              has && a.contractValueReports > 0
+                ? `${gbp(a.contractValueTotalGbp)} across ${a.contractValueReports} review${a.contractValueReports === 1 ? "" : "s"}`
+                : "Not reported yet"
+            }
+          />
+          <Row
+            label="Court action / dispute"
+            value={
+              has
+                ? a.formalDisputeReports > 0
+                  ? `${a.formalDisputeReports} of ${n} review${n === 1 ? "" : "s"}`
+                  : "None reported"
+                : "No record yet"
+            }
+            valueClass={has && a.formalDisputeReports > 0 ? "font-bold text-[#D64545]" : ""}
+          />
 
           {/* Connections (atom) */}
           <SectionTitle>Connections</SectionTitle>

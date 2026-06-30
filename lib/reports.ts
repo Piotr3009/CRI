@@ -369,6 +369,8 @@ export async function getServiceProviderReportRows(
       arBuildabilityScore: true,
       arImpartialScore: true,
       arWouldRecommendScore: true,
+      formalDispute: true,
+      contractValueGbp: true,
     },
   });
   return rows;

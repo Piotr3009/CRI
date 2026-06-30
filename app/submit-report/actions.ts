@@ -489,6 +489,8 @@ const projectManagerSchema = z
     projectCity: z.string().trim().min(1).max(120),
     projectPostcode: z.string().trim().min(2).max(12),
     projectType: projectTypeEnum,
+    contractValueGbp: z.number().int().min(0).max(1000000000),
+    courtDispute: z.enum(["YES", "NO"]),
     ...pmScoresRequired,
     // Optional QS block — required only if this PM also acted as the QS.
     alsoActedAsQs: z.boolean(),
@@ -557,6 +559,8 @@ export async function submitProjectManagerReport(
       projectPostcode: d.projectPostcode,
       publicArea: outwardCode(d.projectPostcode),
       projectType: d.projectType,
+      contractValueGbp: d.contractValueGbp,
+      formalDispute: d.courtDispute,
 
       // Legacy payment-centric fields — neutral placeholders (SP doesn't pay).
       paymentScore: overall,
@@ -621,6 +625,8 @@ const quantitySurveyorSchema = z.object({
   projectCity: z.string().trim().min(1).max(120),
   projectPostcode: z.string().trim().min(2).max(12),
   projectType: projectTypeEnum,
+  contractValueGbp: z.number().int().min(0).max(1000000000),
+  courtDispute: z.enum(["YES", "NO"]),
   ...qsScoresRequired,
   issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
   evidenceTypes: z.array(z.string().trim().max(40)).max(10),
@@ -662,6 +668,8 @@ export async function submitQuantitySurveyorReport(
       projectPostcode: d.projectPostcode,
       publicArea: outwardCode(d.projectPostcode),
       projectType: d.projectType,
+      contractValueGbp: d.contractValueGbp,
+      formalDispute: d.courtDispute,
 
       // Legacy payment-centric fields — neutral placeholders.
       paymentScore: overall,
@@ -725,6 +733,8 @@ const architectPmSchema = z
     projectCity: z.string().trim().min(1).max(120),
     projectPostcode: z.string().trim().min(2).max(12),
     projectType: projectTypeEnum,
+    contractValueGbp: z.number().int().min(0).max(1000000000),
+    courtDispute: z.enum(["YES", "NO"]),
     ...arScoresRequired,
     alsoActedAsPm: z.boolean(),
     ...pmScoresOptional,
@@ -788,6 +798,8 @@ export async function submitArchitectPmReport(
       projectPostcode: d.projectPostcode,
       publicArea: outwardCode(d.projectPostcode),
       projectType: d.projectType,
+      contractValueGbp: d.contractValueGbp,
+      formalDispute: d.courtDispute,
 
       // Legacy payment-centric fields — neutral placeholders.
       paymentScore: overall,
