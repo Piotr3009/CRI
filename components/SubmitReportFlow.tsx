@@ -99,6 +99,7 @@ type Consents = {
 
 
 type PayRow = { daysLate: string; amountGbp: string };
+type InvoiceRow = { invoiceNumber: string; invoiceDate: string; amountGbp: string };
 
 type Errors = Record<string, string>;
 
@@ -401,8 +402,9 @@ export function SubmitReportFlow({
 
   // Debts (> 60 days)
   const [hasDebts, setHasDebts] = useState(false);
-  const [abandonedCount, setAbandonedCount] = useState("");
-  const [abandonedTotal, setAbandonedTotal] = useState("");
+  const [invoiceRows, setInvoiceRows] = useState<InvoiceRow[]>([
+    { invoiceNumber: "", invoiceDate: "", amountGbp: "" },
+  ]);
 
   // Behaviour
   const [behaviour, setBehaviour] = useState<Record<BehaviourKey, Tri>>({
@@ -455,6 +457,23 @@ export function SubmitReportFlow({
 
   function updatePayRow(i: number, patch: Partial<PayRow>) {
     setPayRows((prev) =>
+      prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
+    );
+  }
+
+  function setInvoiceCount(nRaw: number) {
+    const n = Math.max(1, Math.min(20, Math.floor(nRaw || 1)));
+    setInvoiceRows((prev) => {
+      const next = [...prev];
+      while (next.length < n)
+        next.push({ invoiceNumber: "", invoiceDate: "", amountGbp: "" });
+      next.length = n;
+      return next;
+    });
+  }
+
+  function updateInvoiceRow(i: number, patch: Partial<InvoiceRow>) {
+    setInvoiceRows((prev) =>
       prev.map((r, idx) => (idx === i ? { ...r, ...patch } : r)),
     );
   }
@@ -520,10 +539,18 @@ export function SubmitReportFlow({
       });
 
       if (hasDebts) {
-        const n = Number(abandonedCount);
-        if (abandonedCount.trim() === "" || !Number.isInteger(n) || n < 0) {
-          e.abandonedCount = "Enter a number";
-        }
+        invoiceRows.forEach((r, i) => {
+          const amt = Number(r.amountGbp);
+          if (
+            !r.invoiceNumber.trim() ||
+            !r.invoiceDate.trim() ||
+            r.amountGbp.trim() === "" ||
+            !Number.isFinite(amt) ||
+            amt <= 0
+          ) {
+            e[`inv_${i}`] = "Enter invoice number, date and amount";
+          }
+        });
       }
 
       BEHAVIOUR_QUESTIONS.forEach((q) => {
@@ -623,7 +650,7 @@ export function SubmitReportFlow({
     ...PM_SCORES.map((q) => q.key),
     ...QS_SCORES.map((q) => q.key),
     ...payRows.map((_, i) => `pay_${i}`),
-    "abandonedCount",
+    ...invoiceRows.map((_, i) => `inv_${i}`),
     ...BEHAVIOUR_QUESTIONS.map((q) => `beh_${q.key}`),
     ...CONSENT_ITEMS.map((c) => `con_${c.key}`),
   ];
@@ -672,10 +699,17 @@ export function SubmitReportFlow({
         amountGbp: Number(r.amountGbp),
       })),
 
-      abandonedInvoicesCount:
-        hasDebts && abandonedCount.trim() !== "" ? Number(abandonedCount) : null,
-      abandonedInvoicesTotalGbp:
-        hasDebts && abandonedTotal.trim() !== "" ? Number(abandonedTotal) : null,
+      abandonedInvoices: hasDebts
+        ? invoiceRows.map((r) => ({
+            invoiceNumber: r.invoiceNumber.trim(),
+            invoiceDate: r.invoiceDate,
+            amountGbp: Number(r.amountGbp),
+          }))
+        : [],
+      abandonedInvoicesCount: hasDebts ? invoiceRows.length : null,
+      abandonedInvoicesTotalGbp: hasDebts
+        ? invoiceRows.reduce((sum, r) => sum + (Number(r.amountGbp) || 0), 0)
+        : null,
 
       behaviourExtraWorkNoCost: behaviour.behaviourExtraWorkNoCost,
       behaviourAskedCostUpfront: behaviour.behaviourAskedCostUpfront,
@@ -1268,7 +1302,7 @@ export function SubmitReportFlow({
 
           <Section
             title="Abandoned invoices (over 60 days)"
-            description="Invoices left unpaid for more than 60 days — counted separately from late payments. Proof (an approved, never-paid invoice) may be required."
+            description="Invoices left unpaid for more than 60 days — counted separately from late payments."
           >
             <label className="flex items-center gap-2 text-sm text-cri-charcoal">
               <input
@@ -1280,30 +1314,68 @@ export function SubmitReportFlow({
             </label>
 
             {hasDebts && (
-              <div className="grid gap-4 sm:grid-cols-2">
-                <Field
-                  label="How many abandoned invoices?"
-                  required
-                  error={errors.abandonedCount}
-                >
-                  <input
-                    id="abandonedCount"
-                    type="number"
-                    min={0}
-                    className={inp(errors.abandonedCount)}
-                    value={abandonedCount}
-                    onChange={(e) => setAbandonedCount(e.target.value)}
-                  />
-                </Field>
-                <Field label="Total amount £">
+              <div className="mt-4 space-y-4">
+                <div className="rounded-lg border border-[#D64545]/40 bg-[#D64545]/5 px-4 py-3 text-sm text-cri-charcoal">
+                  <span className="font-semibold text-[#D64545]">
+                    Important:{" "}
+                  </span>
+                  Only list genuine invoices that are over 60 days unpaid. Each
+                  invoice is reviewed before publication, and the reported
+                  company has a right to reply. Knowingly submitting false
+                  information may expose you to legal liability.
+                </div>
+
+                <Field label="How many abandoned invoices?">
                   <input
                     type="number"
-                    min={0}
-                    className={inputClass}
-                    value={abandonedTotal}
-                    onChange={(e) => setAbandonedTotal(e.target.value)}
+                    min={1}
+                    max={20}
+                    className={inputClass + " sm:w-40"}
+                    value={invoiceRows.length}
+                    onChange={(e) => setInvoiceCount(Number(e.target.value))}
                   />
                 </Field>
+
+                <div className="space-y-3">
+                  {invoiceRows.map((r, i) => (
+                    <div id={`inv_${i}`} key={i}>
+                      <div className="grid grid-cols-1 gap-2 sm:grid-cols-[auto,1fr,1fr,1fr] sm:items-center">
+                        <span className="text-sm font-medium text-cri-charcoal sm:w-20">
+                          Invoice {i + 1}
+                        </span>
+                        <input
+                          placeholder="Invoice number"
+                          className={inp(errors[`inv_${i}`])}
+                          value={r.invoiceNumber}
+                          onChange={(e) =>
+                            updateInvoiceRow(i, {
+                              invoiceNumber: e.target.value,
+                            })
+                          }
+                        />
+                        <input
+                          type="date"
+                          className={inp(errors[`inv_${i}`])}
+                          value={r.invoiceDate}
+                          onChange={(e) =>
+                            updateInvoiceRow(i, { invoiceDate: e.target.value })
+                          }
+                        />
+                        <input
+                          type="number"
+                          min={0}
+                          placeholder="Amount £"
+                          className={inp(errors[`inv_${i}`])}
+                          value={r.amountGbp}
+                          onChange={(e) =>
+                            updateInvoiceRow(i, { amountGbp: e.target.value })
+                          }
+                        />
+                      </div>
+                      <Err msg={errors[`inv_${i}`]} />
+                    </div>
+                  ))}
+                </div>
               </div>
             )}
           </Section>

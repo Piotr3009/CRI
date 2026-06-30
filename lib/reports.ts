@@ -171,6 +171,7 @@ export async function getAdminReportById(id: string) {
       evidence: true,
       rightToReplies: true,
       payments: { orderBy: { position: "asc" } },
+      abandonedInvoices: { orderBy: { position: "asc" } },
     },
   });
 }

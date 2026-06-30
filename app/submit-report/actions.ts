@@ -37,6 +37,12 @@ const paymentSchema = z.object({
   amountGbp: z.number().int().min(0).max(100000000),
 });
 
+const abandonedInvoiceSchema = z.object({
+  invoiceNumber: z.string().trim().min(1).max(80),
+  invoiceDate: z.string().trim().min(1).max(40),
+  amountGbp: z.number().int().min(1).max(100000000),
+});
+
 const reporterShape = {
   reporterCompanyName: z.string().trim().min(1).max(200),
   reporterContactName: z.string().trim().min(1).max(200),
@@ -73,6 +79,7 @@ const paymentsDebtsShape = {
     .max(100000000)
     .nullable()
     .optional(),
+  abandonedInvoices: z.array(abandonedInvoiceSchema).max(20).optional().default([]),
 };
 
 const behaviourShape = {
@@ -270,6 +277,16 @@ function commonComputed(d: CommonInput) {
         position: i + 1,
         daysLate: p.daysLate,
         amountGbp: p.amountGbp,
+      })),
+    },
+
+    // Abandoned-invoice child rows (detailed, moderator-verifiable)
+    abandonedInvoices: {
+      create: d.abandonedInvoices.map((inv, i) => ({
+        position: i + 1,
+        invoiceNumber: inv.invoiceNumber,
+        invoiceDate: new Date(inv.invoiceDate),
+        amountGbp: inv.amountGbp,
       })),
     },
   };

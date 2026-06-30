@@ -1,5 +1,11 @@
 import type { ReactNode } from "react";
-import type { Evidence, Payment, RightToReply, RiskReport } from "@prisma/client";
+import type {
+  AbandonedInvoice,
+  Evidence,
+  Payment,
+  RightToReply,
+  RiskReport,
+} from "@prisma/client";
 import {
   ENTITY_TYPE_LABELS,
   PROJECT_TYPE_LABELS,
@@ -42,6 +48,7 @@ type FullReport = RiskReport & {
   evidence: Evidence[];
   rightToReplies: RightToReply[];
   payments: Payment[];
+  abandonedInvoices: AbandonedInvoice[];
 };
 
 function Row({ label, children }: { label: string; children: ReactNode }) {
@@ -346,6 +353,38 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
                 : "—"}
             </Row>
           </dl>
+
+          {report.abandonedInvoices.length > 0 ? (
+            <div className="mt-3 overflow-hidden rounded-lg border border-cri-border">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="border-b border-cri-border bg-cri-bg text-left text-xs uppercase tracking-wide text-cri-steel">
+                    <th className="px-3 py-2 font-medium">Invoice no.</th>
+                    <th className="px-3 py-2 font-medium">Date</th>
+                    <th className="px-3 py-2 text-right font-medium">Amount</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {report.abandonedInvoices.map((inv) => (
+                    <tr
+                      key={inv.id}
+                      className="border-b border-cri-border last:border-0"
+                    >
+                      <td className="px-3 py-2 font-medium text-cri-charcoal">
+                        {inv.invoiceNumber}
+                      </td>
+                      <td className="px-3 py-2 text-cri-steel">
+                        {formatDate(inv.invoiceDate)}
+                      </td>
+                      <td className="px-3 py-2 text-right text-cri-charcoal">
+                        {formatCurrencyGBP(inv.amountGbp) ?? "—"}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : null}
         </div>
       ) : null}
 
