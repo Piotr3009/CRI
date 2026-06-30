@@ -267,12 +267,40 @@ export function CompanyReport({
           {kind === "contractor" ? (
             <>
               <SectionTitle>Deductions &amp; retention</SectionTitle>
+              {/* Back-charges — full question, count of reports + total deducted (no gauge: the £ is what matters) */}
               <Row
-                label="Back-charges reported"
-                value={has ? (a.backChargesReports === 0 ? "0" : `${a.backChargesReports} of ${n} · avg ${gbp(a.backChargesAvgGbp)}`) : "No record yet"}
+                label="Did the client deduct from your invoices for defects you didn't agree?"
+                value={
+                  has
+                    ? a.backChargesReports > 0
+                      ? `Yes — ${a.backChargesReports} report${a.backChargesReports === 1 ? "" : "s"}${a.backChargesTotalGbp > 0 ? ` · ${gbp(a.backChargesTotalGbp)} deducted` : ""}`
+                      : "No"
+                    : "No record yet"
+                }
+                valueClass={has && a.backChargesReports > 0 ? "text-cri-amber-dark" : ""}
               />
-              <Row label="Retention not returned" value={has ? pctOf(a.retentionNotReturnedReports, n) : "No record yet"} />
-              <Row label="Variations without paperwork" value={has ? pctOf(a.variationsNoPaperReports, n) : "No record yet"} />
+              {/* Retention — full question, three states (within-term is NOT a red flag) */}
+              <Row
+                label="Did the client return your retention?"
+                value={
+                  has
+                    ? `Returned ${a.retentionReturnedReports} · Not returned ${a.retentionNotReturnedReports} · Still within term ${a.retentionWithinTermReports}`
+                    : "No record yet"
+                }
+                valueClass={has && a.retentionNotReturnedReports > 0 ? "text-cri-amber-dark" : ""}
+              />
+              {/* Variations — full (positive) question + gauge, high = confirmed in writing */}
+              <div className="flex items-center justify-between gap-4 py-2">
+                <p className="flex-1 text-sm text-cri-charcoal">Did the client confirm variations in writing?</p>
+                <div className="w-[92px] shrink-0">
+                  <Speedometer
+                    size="xs"
+                    showLabel={false}
+                    label="Variations confirmed in writing"
+                    value={has ? a.variationsConfirmedScore : null}
+                  />
+                </div>
+              </div>
             </>
           ) : null}
 
@@ -280,9 +308,22 @@ export function CompanyReport({
           <div className="mb-2">
             {dispute ? <RiskBadge level={dispute} label="Dispute risk" /> : <NoRecordPill />}
           </div>
-          <Row label="Formal dispute raised" value={has ? pctOf(a.formalDisputeReports, n) : "No record yet"} />
-          <Row label="Contract value range" value={has && a.contractValueMinGbp != null ? `${gbp(a.contractValueMinGbp)} – ${gbp(a.contractValueMaxGbp)}` : "No record yet"} />
-          <Row label="Project areas" value={has && a.areas.length ? a.areas.join(" · ") : "No record yet"} />
+          <Row
+            label="Court action / formal dispute"
+            value={
+              has
+                ? a.formalDisputeReports > 0
+                  ? `${a.formalDisputeReports} of ${n} report${n === 1 ? "" : "s"}`
+                  : "None reported"
+                : "No record yet"
+            }
+            valueClass={has && a.formalDisputeReports > 0 ? "font-bold text-[#D64545]" : ""}
+          />
+          <Row
+            label="Total contract value"
+            value={has && a.contractValueTotalGbp > 0 ? `${gbp(a.contractValueTotalGbp)} across ${n} report${n === 1 ? "" : "s"}` : "No record yet"}
+          />
+
 
           {/* Connections (atom) */}
           <SectionTitle>Connections</SectionTitle>

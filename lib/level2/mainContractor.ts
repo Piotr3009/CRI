@@ -60,6 +60,7 @@ export type McReportRow = {
   paymentDelaySum: number; // sum of daysLate across this report's payments
   abandonedInvoicesCount: number | null;
   abandonedInvoicesTotalGbp: number | null;
+  backChargesUnagreed: Tri | null;
   backChargesAmountGbp: number | null;
   variationsNoPaper: Tri | null;
   retentionStatus: RetentionStatus | null;
@@ -94,14 +95,19 @@ export type McAggregate = {
   abandonedInvoicesReports: number;
   abandonedInvoicesCount: number; // total invoices across all reports
   abandonedInvoicesTotalGbp: number;
-  backChargesReports: number;
+  backChargesReports: number; // reports answering YES to back-charges
   backChargesAvgGbp: number | null;
+  backChargesTotalGbp: number; // sum of amounts deducted across reports
   retentionNotReturnedReports: number;
+  retentionReturnedReports: number;
+  retentionWithinTermReports: number;
   variationsNoPaperReports: number;
+  variationsConfirmedScore: number; // 0–10 gauge: high = variations confirmed in writing
   formalDisputeReports: number;
 
   contractValueMinGbp: number | null;
   contractValueMaxGbp: number | null;
+  contractValueTotalGbp: number; // sum of contract values across reports
   areas: string[];
 
   // Categorical verdict — null when reportCount < MIN_REPORTS_FOR_RISK.
@@ -226,17 +232,28 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
   const backChargeAmounts = rows
     .map((r) => r.backChargesAmountGbp)
     .filter((a): a is number => a != null && a > 0);
-  const backChargesReports = backChargeAmounts.length;
+  const backChargesReports = rows.filter((r) => r.backChargesUnagreed === "YES").length;
   const backChargesAvgMean = mean(backChargeAmounts);
   const backChargesAvgGbp = backChargesAvgMean == null ? null : Math.round(backChargesAvgMean);
+  const backChargesTotalGbp = backChargeAmounts.reduce((sum, a) => sum + a, 0);
 
   const retentionNotReturnedReports = rows.filter((r) => r.retentionStatus === "NOT_RETURNED").length;
+  const retentionReturnedReports = rows.filter((r) => r.retentionStatus === "RETURNED").length;
+  const retentionWithinTermReports = rows.filter((r) => r.retentionStatus === "WITHIN_TERM").length;
   const variationsNoPaperReports = rows.filter((r) => r.variationsNoPaper === "YES").length;
+  // Gauge: high = the client confirmed variations in writing (so YES-to-no-paper is bad).
+  const variationsConfirmedScore = bayesianScore(
+    rows
+      .map((r) => r.variationsNoPaper)
+      .filter((v): v is Tri => v != null)
+      .map((v) => (v === "NO" ? 10 : v === "SOMETIMES" ? 5 : 1)),
+  );
   const formalDisputeReports = rows.filter((r) => r.formalDispute === "YES").length;
 
   const values = rows.map((r) => r.contractValueGbp).filter((v): v is number => v != null);
   const contractValueMinGbp = values.length ? Math.min(...values) : null;
   const contractValueMaxGbp = values.length ? Math.max(...values) : null;
+  const contractValueTotalGbp = values.reduce((sum, v) => sum + v, 0);
 
   const areas = Array.from(new Set(rows.map((r) => r.publicArea).filter(Boolean)));
 
@@ -262,11 +279,16 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
     abandonedInvoicesTotalGbp,
     backChargesReports,
     backChargesAvgGbp,
+    backChargesTotalGbp,
     retentionNotReturnedReports,
+    retentionReturnedReports,
+    retentionWithinTermReports,
     variationsNoPaperReports,
+    variationsConfirmedScore,
     formalDisputeReports,
     contractValueMinGbp,
     contractValueMaxGbp,
+    contractValueTotalGbp,
     areas,
     overallRisk: computeOverallRisk(n, {
       avgPaymentDelayDays,
