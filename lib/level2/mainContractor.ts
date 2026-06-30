@@ -298,6 +298,8 @@ export function aggregateMainContractor(rows: McReportRow[]): McAggregate {
       retentionNotReturnedReports,
       variationsNoPaperReports,
       formalDisputeReports,
+      abandonedInvoicesCount,
+      paymentReliability,
     }),
   };
 }
@@ -318,8 +320,14 @@ function computeOverallRisk(
     retentionNotReturnedReports: number;
     variationsNoPaperReports: number;
     formalDisputeReports: number;
+    abandonedInvoicesCount: number;
+    paymentReliability: number;
   },
 ): "LOW" | "MEDIUM" | "HIGH" | null {
+  // Strong signal: 2+ abandoned invoices AND a very low payment score (<3)
+  // flags HIGH even with few reports — overrides the "provisional" null below.
+  if (f.abandonedInvoicesCount >= 2 && f.paymentReliability < 3) return "HIGH";
+
   if (n < MIN_REPORTS_FOR_RISK) return null;
 
   const latePct = f.reportsPaidLate / n;

@@ -13,7 +13,6 @@ import {
   EVIDENCE_STATUS_LABELS,
   VISIBILITY_LABELS,
   MODERATION_STATUS_LABELS,
-  CONTRACT_VALUE_LABELS,
   YES_NO_UNSURE_LABELS,
   optionsFromLabels,
 } from "@/lib/constants";
@@ -245,6 +244,14 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
             This is the only narrative shown publicly. Keep it neutral and
             factual.
           </p>
+          <div className="mt-3 rounded-lg border border-cri-border bg-cri-bg p-3">
+            <p className="text-xs font-medium text-cri-steel">
+              What the reporter wrote (private — for reference)
+            </p>
+            <p className="mt-1 whitespace-pre-wrap text-sm text-cri-charcoal">
+              {report.issueDescription || "—"}
+            </p>
+          </div>
           <form action={savePublicSummaryAction} className="mt-3">
             <input type="hidden" name="id" value={report.id} />
             <textarea
@@ -340,6 +347,9 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
             </table>
           </div>
           <dl className="mt-4">
+            <Row label="Contract value">
+              {formatCurrencyGBP(report.contractValueGbp) ?? "—"}
+            </Row>
             <Row label="Payment Score">
               {report.paymentScore.toFixed(1)} / 10
             </Row>
@@ -457,9 +467,7 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
             {PROJECT_STATUS_LABELS[report.projectStatus]}
           </Row>
           <Row label="Contract value">
-            {report.contractValueRange
-              ? CONTRACT_VALUE_LABELS[report.contractValueRange]
-              : "—"}
+            {formatCurrencyGBP(report.contractValueGbp) ?? "—"}
           </Row>
           <Row label="Start date">{formatDate(report.startDate)}</Row>
           <Row label="Finish date">{formatDate(report.finishDate)}</Row>
@@ -479,14 +487,6 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
           <Row label="Reporter phone">{report.reporterPhone ?? "—"}</Row>
           <Row label="Reporter trade">{report.reporterTradeType}</Row>
         </dl>
-        <div className="mt-4">
-          <p className="text-sm font-medium text-cri-steel">
-            Issue description (private)
-          </p>
-          <p className="mt-1 whitespace-pre-wrap rounded-lg border border-cri-border bg-cri-bg p-3 text-sm text-cri-charcoal">
-            {report.issueDescription}
-          </p>
-        </div>
       </div>
 
       {/* Evidence */}
