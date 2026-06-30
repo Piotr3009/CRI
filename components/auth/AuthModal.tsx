@@ -5,8 +5,78 @@ import { useRouter } from "next/navigation";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
 import { Modal } from "@/components/ui/Modal";
 import { TRADE_TYPES } from "@/lib/constants";
+import { CompanyAutocomplete } from "@/components/CompanyAutocomplete";
 
 export type AuthMode = "login" | "signup" | "forgot";
+
+type AccountType = "" | "ltd" | "sole" | "other";
+
+const ACCOUNT_TYPES: { value: Exclude<AccountType, "">; label: string; hint: string }[] = [
+  { value: "ltd", label: "Limited company (Ltd)", hint: "Registered at Companies House" },
+  { value: "sole", label: "Sole trader", hint: "No company number" },
+  { value: "other", label: "Other", hint: "Partnership, charity, etc." },
+];
+
+function EyeIcon({ off }: { off?: boolean }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" className="h-4 w-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      {off ? (
+        <>
+          <path d="M9.88 9.88a3 3 0 1 0 4.24 4.24" />
+          <path d="M10.73 5.08A10.43 10.43 0 0 1 12 5c7 0 10 7 10 7a13.16 13.16 0 0 1-1.67 2.68" />
+          <path d="M6.61 6.61A13.526 13.526 0 0 0 2 12s3 7 10 7a9.74 9.74 0 0 0 5.39-1.61" />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </>
+      ) : (
+        <>
+          <path d="M2 12s3-7 10-7 10 7 10 7-3 7-10 7-10-7-10-7Z" />
+          <circle cx="12" cy="12" r="3" />
+        </>
+      )}
+    </svg>
+  );
+}
+
+// Top-level (not nested in AuthModal) so typing doesn't remount it / lose focus.
+function PasswordField({
+  label,
+  placeholder,
+  value,
+  onChange,
+  show,
+  onToggle,
+}: {
+  label: string;
+  placeholder?: string;
+  value: string;
+  onChange: (v: string) => void;
+  show: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <div>
+      <label className="label">{label}</label>
+      <div className="relative">
+        <input
+          type={show ? "text" : "password"}
+          className="input pr-10"
+          placeholder={placeholder}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <button
+          type="button"
+          onClick={onToggle}
+          className="absolute inset-y-0 right-0 flex items-center pr-3 text-cri-steel hover:text-cri-charcoal"
+          aria-label={show ? "Hide password" : "Show password"}
+          tabIndex={-1}
+        >
+          <EyeIcon off={show} />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export function AuthModal({
   mode,
@@ -24,10 +94,14 @@ export function AuthModal({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
+  const [accountType, setAccountType] = useState<AccountType>("");
   const [companyName, setCompanyName] = useState("");
-  const [contactName, setContactName] = useState("");
-  const [tradeType, setTradeType] = useState("");
   const [companyNumber, setCompanyNumber] = useState("");
+  const [contactName, setContactName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [tradeType, setTradeType] = useState("");
 
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -42,17 +116,21 @@ export function AuthModal({
         : "Log in";
 
   function validate(): string | null {
+    if (isSignup) {
+      if (!accountType) return "Choose your account type.";
+      if (accountType === "ltd" && !companyNumber.trim())
+        return "Search for and select your company.";
+      if (!companyName.trim()) return "Enter your company / business name.";
+      if (!contactName.trim()) return "Enter your name.";
+      if (!tradeType.trim()) return "Select your trade type.";
+    }
     if (!email.trim()) return "Enter your email.";
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()))
       return "Enter a valid email.";
     if (isForgot) return null;
     if (password.length < 8) return "Password must be at least 8 characters.";
-    if (isSignup) {
-      if (password !== confirmPassword) return "Passwords do not match.";
-      if (!companyName.trim()) return "Enter your company name.";
-      if (!contactName.trim()) return "Enter a contact person.";
-      if (!tradeType.trim()) return "Enter your trade type.";
-    }
+    if (isSignup && password !== confirmPassword)
+      return "Passwords do not match.";
     return null;
   }
 
@@ -90,6 +168,7 @@ export function AuthModal({
               contactName: contactName.trim(),
               tradeType: tradeType.trim(),
               companyNumber: companyNumber.trim(),
+              phone: phone.trim(),
             },
           },
         });
@@ -119,6 +198,15 @@ export function AuthModal({
     }
   }
 
+  const stepHeader = (n: number, text: string) => (
+    <div className="flex items-center gap-2">
+      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-cri-green text-[11px] font-bold text-white">
+        {n}
+      </span>
+      <span className="text-sm font-semibold text-cri-charcoal">{text}</span>
+    </div>
+  );
+
   return (
     <Modal title={title} onClose={onClose}>
       {sentTo ? (
@@ -134,14 +222,190 @@ export function AuthModal({
             Done
           </button>
         </div>
-      ) : (
+      ) : isSignup ? (
         <>
-          {isSignup && (
-            <p className="text-xs text-cri-steel">
-              You report facts about companies — your details stay private and
-              are never shown publicly.
+          <p className="text-xs text-cri-steel">
+            You report facts about companies — your details stay private and are
+            never shown publicly.
+          </p>
+
+          <div className="mt-4 space-y-5">
+            {/* Step 1 — account type */}
+            <div className="space-y-2">
+              {stepHeader(1, "Account type")}
+              <div className="space-y-2">
+                {ACCOUNT_TYPES.map((t) => {
+                  const active = accountType === t.value;
+                  return (
+                    <button
+                      key={t.value}
+                      type="button"
+                      onClick={() => {
+                        setAccountType(t.value);
+                        // Switching type clears any company picked under another type.
+                        setCompanyName("");
+                        setCompanyNumber("");
+                        setError(null);
+                      }}
+                      className={`flex w-full flex-col rounded-lg border px-4 py-2.5 text-left transition ${
+                        active
+                          ? "border-cri-green bg-cri-green/5 ring-1 ring-cri-green"
+                          : "border-cri-border hover:border-cri-green/50"
+                      }`}
+                    >
+                      <span className="text-sm font-semibold text-cri-charcoal">
+                        {t.label}
+                      </span>
+                      <span className="text-xs text-cri-steel">{t.hint}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Steps 2–4 appear once a type is chosen */}
+            {accountType && (
+              <>
+                {/* Step 2 — company / identity */}
+                <div className="space-y-3">
+                  {stepHeader(2, "Your details")}
+
+                  {accountType === "ltd" ? (
+                    <div>
+                      <label className="label">Find your company</label>
+                      <CompanyAutocomplete
+                        name={companyName}
+                        number={companyNumber}
+                        onSelect={(c) => {
+                          setCompanyName(c.name);
+                          setCompanyNumber(c.number);
+                        }}
+                        onClear={() => {
+                          setCompanyName("");
+                          setCompanyNumber("");
+                        }}
+                        placeholder="Start typing your company name…"
+                      />
+                    </div>
+                  ) : (
+                    <div>
+                      <label className="label">Business name</label>
+                      <input
+                        className="input"
+                        placeholder="Your trading name"
+                        value={companyName}
+                        onChange={(e) => setCompanyName(e.target.value)}
+                      />
+                    </div>
+                  )}
+
+                  <div>
+                    <label className="label">Your name</label>
+                    <input
+                      className="input"
+                      placeholder="Contact person"
+                      value={contactName}
+                      onChange={(e) => setContactName(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="label">
+                      Phone{" "}
+                      <span className="font-normal text-cri-steel">
+                        (optional)
+                      </span>
+                    </label>
+                    <input
+                      className="input"
+                      type="tel"
+                      placeholder="e.g. 07123 456789"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {/* Step 3 — trade type */}
+                <div className="space-y-2">
+                  {stepHeader(3, "Trade type")}
+                  <select
+                    className="input"
+                    value={tradeType}
+                    onChange={(e) => setTradeType(e.target.value)}
+                  >
+                    <option value="">Select…</option>
+                    {TRADE_TYPES.map((t) => (
+                      <option key={t} value={t}>
+                        {t}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* Step 4 — login details */}
+                <div className="space-y-3">
+                  {stepHeader(4, "Login details")}
+                  <div>
+                    <label className="label">Email</label>
+                    <input
+                      type="email"
+                      className="input"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                    />
+                  </div>
+                  <PasswordField
+                    label="Password"
+                    placeholder="At least 8 characters"
+                    value={password}
+                    onChange={setPassword}
+                    show={showPassword}
+                    onToggle={() => setShowPassword((x) => !x)}
+                  />
+                  <PasswordField
+                    label="Confirm password"
+                    placeholder="Re-enter your password"
+                    value={confirmPassword}
+                    onChange={setConfirmPassword}
+                    show={showPassword}
+                    onToggle={() => setShowPassword((x) => !x)}
+                  />
+                </div>
+              </>
+            )}
+          </div>
+
+          {error && (
+            <p className="mt-3 rounded-lg bg-cri-amber/10 px-3 py-2 text-sm text-cri-amber-dark">
+              {error}
             </p>
           )}
+
+          <button
+            className="btn-primary mt-5 w-full"
+            disabled={submitting}
+            onClick={handleSubmit}
+          >
+            {submitting ? "Please wait…" : "Create account"}
+          </button>
+
+          <p className="mt-4 text-center text-sm text-cri-steel">
+            Already have an account?{" "}
+            <button
+              type="button"
+              className="font-semibold text-cri-green hover:underline"
+              onClick={() => {
+                setError(null);
+                onSwitchMode("login");
+              }}
+            >
+              Log in
+            </button>
+          </p>
+        </>
+      ) : (
+        <>
           {isForgot && (
             <p className="text-xs text-cri-steel">
               Enter your email and we&apos;ll send you a link to set a new
@@ -160,89 +424,24 @@ export function AuthModal({
               />
             </div>
             {!isForgot && (
-              <div>
-                <label className="label">Password</label>
-                <input
-                  type="password"
-                  className="input"
-                  placeholder={isSignup ? "At least 8 characters" : undefined}
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                />
-                {mode === "login" && (
-                  <button
-                    type="button"
-                    className="mt-1.5 text-xs font-medium text-cri-green hover:underline"
-                    onClick={() => {
-                      setError(null);
-                      onSwitchMode("forgot");
-                    }}
-                  >
-                    Forgot password?
-                  </button>
-                )}
-              </div>
-            )}
-
-            {isSignup && (
               <>
-                <div>
-                  <label className="label">Confirm password</label>
-                  <input
-                    type="password"
-                    className="input"
-                    placeholder="Re-enter your password"
-                    value={confirmPassword}
-                    onChange={(e) => setConfirmPassword(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="label">Company name</label>
-                  <input
-                    className="input"
-                    placeholder="e.g. ABC Electrical Ltd"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="label">Contact person</label>
-                  <input
-                    className="input"
-                    placeholder="Your name"
-                    value={contactName}
-                    onChange={(e) => setContactName(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="label">Trade type</label>
-                  <select
-                    className="input"
-                    value={tradeType}
-                    onChange={(e) => setTradeType(e.target.value)}
-                  >
-                    <option value="">Select…</option>
-                    {TRADE_TYPES.map((t) => (
-                      <option key={t} value={t}>
-                        {t}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="label">
-                    Companies House number{" "}
-                    <span className="font-normal text-cri-steel">
-                      (optional)
-                    </span>
-                  </label>
-                  <input
-                    className="input"
-                    placeholder="e.g. 01234567 — sole traders can skip"
-                    value={companyNumber}
-                    onChange={(e) => setCompanyNumber(e.target.value)}
-                  />
-                </div>
+                <PasswordField
+                  label="Password"
+                  value={password}
+                  onChange={setPassword}
+                  show={showPassword}
+                  onToggle={() => setShowPassword((x) => !x)}
+                />
+                <button
+                  type="button"
+                  className="text-xs font-medium text-cri-green hover:underline"
+                  onClick={() => {
+                    setError(null);
+                    onSwitchMode("forgot");
+                  }}
+                >
+                  Forgot password?
+                </button>
               </>
             )}
           </div>
@@ -260,29 +459,13 @@ export function AuthModal({
           >
             {submitting
               ? "Please wait…"
-              : isSignup
-                ? "Create account"
-                : isForgot
-                  ? "Send reset link"
-                  : "Log in"}
+              : isForgot
+                ? "Send reset link"
+                : "Log in"}
           </button>
 
           <p className="mt-4 text-center text-sm text-cri-steel">
-            {isSignup ? (
-              <>
-                Already have an account?{" "}
-                <button
-                  type="button"
-                  className="font-semibold text-cri-green hover:underline"
-                  onClick={() => {
-                    setError(null);
-                    onSwitchMode("login");
-                  }}
-                >
-                  Log in
-                </button>
-              </>
-            ) : isForgot ? (
+            {isForgot ? (
               <>
                 Remembered it?{" "}
                 <button
