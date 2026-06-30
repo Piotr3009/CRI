@@ -1,4 +1,4 @@
-import type { User } from "@prisma/client";
+import type { User, UserRole } from "@prisma/client";
 import { prisma } from "./db";
 import {
   createSupabaseServerClient,
@@ -54,4 +54,26 @@ export async function getCurrentUser(): Promise<User | null> {
       verifiedStatus: "UNVERIFIED",
     },
   });
+}
+
+/** A user row plus how many reports they have submitted. */
+export type UserWithReportCount = User & { _count: { reports: number } };
+
+/** All registered users, newest first, with their report counts. Admin-only. */
+export async function getAllUsers(): Promise<UserWithReportCount[]> {
+  return prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    include: { _count: { select: { reports: true } } },
+  });
+}
+
+/**
+ * Set a user's role. Caller MUST verify the actor is a SUPER_ADMIN first — this
+ * function does not check permissions itself.
+ */
+export async function updateUserRole(
+  userId: string,
+  role: UserRole,
+): Promise<User> {
+  return prisma.user.update({ where: { id: userId }, data: { role } });
 }

@@ -98,6 +98,12 @@ export default async function AdminPage({
             Review, score and control the visibility of submitted reports.
           </p>
         </div>
+        <Link
+          href="/admin/users"
+          className="inline-flex items-center gap-2 rounded-lg border border-cri-border bg-white px-4 py-2 text-sm font-semibold text-cri-charcoal transition-colors hover:border-cri-green hover:text-cri-green"
+        >
+          Users →
+        </Link>
       </div>
 
       {/* Visit stats */}
