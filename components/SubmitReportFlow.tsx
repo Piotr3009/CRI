@@ -620,14 +620,22 @@ export function SubmitReportFlow({
     (s, r) => s + (Number(r.amountGbp) || 0),
     0,
   );
+  const abandonedTotal = hasDebts
+    ? invoiceRows.reduce((s, r) => s + (Number(r.amountGbp) || 0), 0)
+    : 0;
+  const accountedTotal = paymentsTotal + abandonedTotal;
   const contractVal = Number(contractValueGbp) || 0;
-  const totalBelowValue =
-    contractVal > 0 && paymentsTotal > 0 && paymentsTotal < contractVal * 0.5;
+  // Payments + abandoned invoices together should roughly match the contract
+  // value; warn (never block) when they diverge by more than 10%.
+  const totalOffContract =
+    contractVal > 0 &&
+    accountedTotal > 0 &&
+    Math.abs(accountedTotal - contractVal) > contractVal * 0.1;
   const longButSingle =
     ["1_3_MONTHS", "3_6_MONTHS", "6_12_MONTHS", "1_2_YEARS", "OVER_2_YEARS"].includes(
       contractLength,
     ) && payRows.length === 1;
-  const showPaymentWarning = totalBelowValue || longButSingle;
+  const showPaymentWarning = totalOffContract || longButSingle;
 
   // Ordered ids for "scroll to first problem".
   const errorOrder: string[] = [
@@ -1289,8 +1297,8 @@ export function SubmitReportFlow({
 
             {showPaymentWarning && (
               <div className="rounded-lg border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-                {totalBelowValue
-                  ? "Your payments add up to well below the contract value. Did you list all of them, including on-time ones? If money is still outstanding, use the retention or abandoned-invoice sections."
+                {totalOffContract
+                  ? "Your payments and abandoned invoices together differ from the contract value by more than 10%. Did you list everything — including on-time payments, retention, and any unpaid invoices?"
                   : "A longer contract with a single payment looks unusual. Please make sure you've listed every payment, not just the late ones."}
               </div>
             )}
