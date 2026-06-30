@@ -220,11 +220,11 @@ export function ServiceProviderReport({
               <Row
                 label="Accounts"
                 value={facts.accountsOverdue ? (facts.accountsNextDue ? `Overdue (was due ${isoDate(facts.accountsNextDue)})` : "Overdue") : facts.accountsNextDue ? `Next due ${isoDate(facts.accountsNextDue)}` : "Up to date"}
-                valueClass={facts.accountsOverdue ? "text-cri-amber-dark" : "text-cri-green"}
+                valueClass={facts.accountsOverdue ? "font-bold text-[#D64545]" : "text-cri-green"}
               />
-              <Row label="Confirmation statement" value={facts.confirmationOverdue ? "Overdue" : "Up to date"} valueClass={facts.confirmationOverdue ? "text-cri-amber-dark" : "text-cri-green"} />
+              <Row label="Confirmation statement" value={facts.confirmationOverdue ? "Overdue" : "Up to date"} valueClass={facts.confirmationOverdue ? "font-bold text-[#D64545]" : "text-cri-green"} />
               <Row label="Charges / mortgages" value={facts.hasCharges ? "Registered" : "None"} valueClass={facts.hasCharges ? "text-cri-amber-dark" : "text-cri-green"} />
-              <Row label="Insolvency history" value={facts.hasInsolvencyHistory ? "Yes" : "No"} valueClass={facts.hasInsolvencyHistory ? "text-cri-amber-dark" : "text-cri-green"} />
+              <Row label="Insolvency history" value={facts.hasInsolvencyHistory ? "Yes" : "No"} valueClass={facts.hasInsolvencyHistory ? "font-bold text-[#D64545]" : "text-cri-green"} />
             </>
           ) : (
             <p className="py-2 text-sm text-cri-steel">Filing health is unavailable right now.</p>

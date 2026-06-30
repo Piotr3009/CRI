@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     const res = await fetch(
       `https://api.company-information.service.gov.uk/search/companies?q=${encodeURIComponent(
         q,
-      )}&items_per_page=8`,
+      )}&items_per_page=20`,
       {
         headers: {
           Authorization: `Basic ${Buffer.from(`${key}:`).toString("base64")}`,

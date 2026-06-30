@@ -12,6 +12,16 @@ export function CompanySearch() {
 
   return (
     <div>
+      {selected ? (
+        <button
+          type="button"
+          onClick={() => setSelected(null)}
+          className="mb-3 text-sm font-semibold text-cri-green hover:underline"
+        >
+          ← Search another company
+        </button>
+      ) : null}
+
       <CompanyAutocomplete
         name={selected?.name ?? ""}
         number={selected?.number ?? ""}
