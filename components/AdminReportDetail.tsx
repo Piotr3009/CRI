@@ -36,6 +36,8 @@ import { RiskBadge } from "./RiskBadge";
 import { EvidenceBadge } from "./EvidenceBadge";
 import { VisibilityBadge } from "./VisibilityBadge";
 import { LockIcon } from "./Icons";
+import { EvidenceDownloadButton } from "./EvidenceDownloadButton";
+import { formatFileSize } from "@/lib/evidenceUpload";
 
 const RETENTION_STATUS_LABELS: Record<string, string> = {
   NOT_RETURNED: "Not returned",
@@ -503,18 +505,32 @@ export function AdminReportDetail({ report }: { report: FullReport }) {
                 key={e.id}
                 className="rounded-lg border border-cri-border bg-cri-bg p-3 text-sm"
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium text-cri-charcoal">{e.type}</span>
-                  <span className="text-xs text-cri-steel">{e.status}</span>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium text-cri-charcoal">
+                      {e.fileName ?? e.type}
+                    </p>
+                    <p className="mt-0.5 text-xs text-cri-steel">
+                      {[
+                        e.fileSizeBytes != null
+                          ? formatFileSize(e.fileSizeBytes)
+                          : null,
+                        formatDate(e.createdAt),
+                      ]
+                        .filter(Boolean)
+                        .join(" · ")}
+                    </p>
+                    {e.description ? (
+                      <p className="mt-1 text-cri-steel">{e.description}</p>
+                    ) : null}
+                  </div>
+                  <div className="flex shrink-0 flex-col items-end gap-1.5">
+                    <span className="text-xs text-cri-steel">{e.status}</span>
+                    {e.fileUrl ? (
+                      <EvidenceDownloadButton evidenceId={e.id} />
+                    ) : null}
+                  </div>
                 </div>
-                {e.description ? (
-                  <p className="mt-1 text-cri-steel">{e.description}</p>
-                ) : null}
-                {e.fileUrl ? (
-                  <p className="mt-1 break-all text-xs text-cri-green">
-                    {e.fileUrl}
-                  </p>
-                ) : null}
               </li>
             ))}
           </ul>

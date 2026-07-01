@@ -9,6 +9,8 @@ import {
   submitQuantitySurveyorReport,
   submitArchitectPmReport,
 } from "@/app/submit-report/actions";
+import { EvidenceUpload } from "@/components/EvidenceUpload";
+import type { UploadedEvidence } from "@/lib/evidenceUpload";
 import {
   PROJECT_TYPE_LABELS,
   PROJECT_STATUS_LABELS,
@@ -421,6 +423,7 @@ export function SubmitReportFlow({
   // Narrative / evidence / consents
   const [issueDescription, setIssueDescription] = useState("");
   const [evidence, setEvidence] = useState<string[]>([]);
+  const [evidenceFiles, setEvidenceFiles] = useState<UploadedEvidence[]>([]);
   const [consents, setConsents] = useState<Consents>({
     realExperience: false,
     canProvide: false,
@@ -730,6 +733,7 @@ export function SubmitReportFlow({
 
       issueDescription: issueDescription.trim(),
       evidenceTypes: evidence,
+      evidenceFiles,
       consents,
     };
 
@@ -768,6 +772,7 @@ export function SubmitReportFlow({
         courtDispute,
         issueDescription: issueDescription.trim(),
         evidenceTypes: evidence,
+        evidenceFiles,
         consents: {
           realExperience: consents.realExperience,
           canProvide: consents.canProvide,
@@ -1453,27 +1458,11 @@ export function SubmitReportFlow({
               </div>
             </div>
 
-            {/* Upload placeholder — secure file storage is a future module */}
-            <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-sm font-medium text-cri-charcoal">
-                    Upload supporting documents
-                  </p>
-                  <p className="text-xs text-cri-steel">
-                    Secure file upload is coming soon. For now, tick what you
-                    hold above — CIX may request it.
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  disabled
-                  className="cursor-not-allowed rounded-lg border border-gray-300 px-3 py-2 text-sm text-cri-steel"
-                >
-                  Coming soon
-                </button>
-              </div>
-            </div>
+            <EvidenceUpload
+              value={evidenceFiles}
+              onChange={setEvidenceFiles}
+              disabled={submitting}
+            />
           </Section>
 
           <Section title="Confirmations" description="All required.">
@@ -1800,6 +1789,12 @@ export function SubmitReportFlow({
                 ))}
               </div>
             </div>
+
+            <EvidenceUpload
+              value={evidenceFiles}
+              onChange={setEvidenceFiles}
+              disabled={submitting}
+            />
           </Section>
 
           <Section title="Confirmations" description="All required.">

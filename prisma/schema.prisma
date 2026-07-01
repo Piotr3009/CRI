@@ -327,7 +327,10 @@ model Evidence {
   riskReport   RiskReport           @relation(fields: [riskReportId], references: [id], onDelete: Cascade)
   riskReportId String
   type         String // e.g. "DESCRIPTION", "DOCUMENT", "PHOTO", "EMAIL"
-  fileUrl      String?
+  fileUrl      String? // object key within the private "evidence" Storage bucket
+  fileName      String? // original uploaded filename (shown to moderators)
+  fileSizeBytes Int? // size in bytes
+  mimeType      String? // uploaded content type
   description  String?
   status       EvidenceReviewStatus @default(PENDING)
   createdAt    DateTime             @default(now())

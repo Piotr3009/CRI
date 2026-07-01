@@ -5,12 +5,60 @@ import { z } from "zod";
 import { createRiskReport } from "@/lib/reports";
 import { scoreFromDelay } from "@/lib/level2/mainContractor";
 import { getCurrentUser } from "@/lib/user";
+import {
+  createSupabaseAdminClient,
+  isAdminClientConfigured,
+} from "@/lib/supabase/admin";
+import {
+  EVIDENCE_BUCKET,
+  MAX_EVIDENCE_FILES,
+  MAX_EVIDENCE_SIZE_BYTES,
+  evidenceKindFromMime,
+  sanitizeFileName,
+  validateEvidenceFile,
+  type UploadedEvidence,
+} from "@/lib/evidenceUpload";
 
 // ---------------------------------------------------------------------------
 // Shared validation pieces — all client input is untrusted (Zod re-validates).
 // ---------------------------------------------------------------------------
 
 const behaviour = z.enum(["YES", "SOMETIMES", "NO"]);
+
+// Uploaded-evidence descriptors returned by the browser after a direct upload.
+// The path + kind were issued/derived server-side, but everything is
+// re-validated here because all client input is untrusted.
+const evidenceFileSchema = z.object({
+  path: z.string().trim().min(1).max(300),
+  fileName: z.string().trim().min(1).max(255),
+  sizeBytes: z.number().int().positive().max(MAX_EVIDENCE_SIZE_BYTES),
+  mimeType: z.string().trim().min(1).max(150),
+  kind: z.enum(["PHOTO", "DOCUMENT"]),
+});
+const evidenceFilesField = z
+  .array(evidenceFileSchema)
+  .max(MAX_EVIDENCE_FILES)
+  .optional()
+  .default([]);
+
+/**
+ * Build the Prisma nested-create input for a report's evidence files, or
+ * undefined when there are none (so we never emit an empty create).
+ */
+function evidenceCreateInput(
+  files: UploadedEvidence[] | undefined,
+): { create: Array<{ type: string; fileUrl: string; fileName: string; fileSizeBytes: number; mimeType: string }> } | undefined {
+  if (!files || files.length === 0) return undefined;
+  return {
+    create: files.map((f) => ({
+      type: f.kind,
+      fileUrl: f.path,
+      fileName: f.fileName,
+      fileSizeBytes: f.sizeBytes,
+      mimeType: f.mimeType,
+    })),
+  };
+}
 
 const projectTypeEnum = z.enum([
   "REFURBISHMENT",
@@ -96,6 +144,7 @@ const behaviourShape = {
 const tailShape = {
   issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
   evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+  evidenceFiles: evidenceFilesField,
   consents: z.object({
     realExperience: z.literal(true),
     canProvide: z.literal(true),
@@ -289,6 +338,9 @@ function commonComputed(d: CommonInput) {
         amountGbp: inv.amountGbp,
       })),
     },
+
+    // Evidence files uploaded to Storage (undefined when none — Prisma skips it)
+    evidence: evidenceCreateInput(d.evidenceFiles),
   };
 }
 
@@ -536,6 +588,7 @@ const projectManagerSchema = z
     ...qsScoresOptional,
     issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
     evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+    evidenceFiles: evidenceFilesField,
     consents: serviceProviderConsents,
   })
   .superRefine((d, ctx) => {
@@ -616,6 +669,7 @@ export async function submitProjectManagerReport(
 
       issueDescription: (d.issueDescription || "").trim(),
       evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
+      evidence: evidenceCreateInput(d.evidenceFiles),
       consentsAcceptedAt: new Date(),
 
       // Service-provider role + PM scores
@@ -676,6 +730,7 @@ const quantitySurveyorSchema = z.object({
   ...qsScoresRequired,
   issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
   evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+  evidenceFiles: evidenceFilesField,
   consents: serviceProviderConsents,
 });
 
@@ -732,6 +787,7 @@ export async function submitQuantitySurveyorReport(
 
       issueDescription: (d.issueDescription || "").trim(),
       evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
+      evidence: evidenceCreateInput(d.evidenceFiles),
       consentsAcceptedAt: new Date(),
 
       spReporterRole: d.spReporterRole,
@@ -795,6 +851,7 @@ const architectPmSchema = z
     ...qsScoresOptional,
     issueDescription: z.string().trim().max(1000).optional().or(z.literal("")),
     evidenceTypes: z.array(z.string().trim().max(40)).max(10),
+    evidenceFiles: evidenceFilesField,
     consents: serviceProviderConsents,
   })
   .superRefine((d, ctx) => {
@@ -869,6 +926,7 @@ export async function submitArchitectPmReport(
 
       issueDescription: (d.issueDescription || "").trim(),
       evidenceTypes: d.evidenceTypes.length ? d.evidenceTypes.join(",") : null,
+      evidence: evidenceCreateInput(d.evidenceFiles),
       consentsAcceptedAt: new Date(),
 
       spReporterRole: d.spReporterRole,
@@ -889,4 +947,67 @@ export async function submitArchitectPmReport(
   }
 
   redirect("/submit-report/success");
+}
+
+// ---------------------------------------------------------------------------
+// Evidence upload — issues a short-lived signed URL so the browser can upload a
+// file directly to Supabase Storage (bypassing the Vercel request-body cap).
+// The service-role key stays server-side; the returned token authorises exactly
+// one upload to exactly one object path.
+// ---------------------------------------------------------------------------
+
+const uploadUrlSchema = z.object({
+  fileName: z.string().trim().min(1).max(255),
+  sizeBytes: z.number().int().positive().max(MAX_EVIDENCE_SIZE_BYTES),
+  mimeType: z.string().trim().min(1).max(150),
+});
+
+export type EvidenceUploadUrlResult =
+  | { ok: true; path: string; token: string; kind: "PHOTO" | "DOCUMENT" }
+  | { ok: false; error: string };
+
+export async function createEvidenceUploadUrl(
+  input: unknown,
+): Promise<EvidenceUploadUrlResult> {
+  const reporter = await getCurrentUser();
+  if (!reporter) {
+    return { ok: false, error: "You must be signed in to upload files." };
+  }
+  if (!isAdminClientConfigured) {
+    return { ok: false, error: "File uploads are not available right now." };
+  }
+
+  const parsed = uploadUrlSchema.safeParse(input);
+  if (!parsed.success) {
+    return { ok: false, error: "Invalid file." };
+  }
+  const { fileName, sizeBytes, mimeType } = parsed.data;
+
+  const check = validateEvidenceFile({ fileName, sizeBytes });
+  if (!check.ok) {
+    return { ok: false, error: check.error };
+  }
+
+  // Unguessable, per-file path so a client can only ever reference its own
+  // uploads. The filename is preserved (sanitised) for the moderator's benefit.
+  const path = `${crypto.randomUUID()}/${sanitizeFileName(fileName)}`;
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase.storage
+      .from(EVIDENCE_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      return { ok: false, error: "Could not start the upload. Please try again." };
+    }
+    return {
+      ok: true,
+      path: data.path,
+      token: data.token,
+      kind: evidenceKindFromMime(mimeType, fileName),
+    };
+  } catch (error) {
+    console.error("Failed to create evidence upload URL", error);
+    return { ok: false, error: "Could not start the upload. Please try again." };
+  }
 }

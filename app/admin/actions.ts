@@ -9,11 +9,17 @@ import type {
 } from "@prisma/client";
 import { getAdminUser } from "@/lib/auth";
 import {
+  getEvidenceFileRef,
   updateReportEvidenceStatus,
   updateReportModerationStatus,
   updateReportPublicSummary,
   updateReportVisibility,
 } from "@/lib/reports";
+import {
+  createSupabaseAdminClient,
+  isAdminClientConfigured,
+} from "@/lib/supabase/admin";
+import { EVIDENCE_BUCKET } from "@/lib/evidenceUpload";
 
 const EVIDENCE_VALUES: EvidenceStatus[] = [
   "UNVERIFIED",
@@ -81,4 +87,45 @@ export async function savePublicSummaryAction(formData: FormData) {
   if (!id) return;
   await updateReportPublicSummary(id, summary);
   revalidateReport(id);
+}
+
+// ---------------------------------------------------------------------------
+// Evidence download — moderator-only. Returns a short-lived signed URL for a
+// file in the private "evidence" bucket. The URL forces a download and expires
+// after 60 seconds.
+// ---------------------------------------------------------------------------
+
+export type EvidenceDownloadUrlResult =
+  | { ok: true; url: string }
+  | { ok: false; error: string };
+
+export async function createEvidenceDownloadUrl(
+  evidenceId: string,
+): Promise<EvidenceDownloadUrlResult> {
+  const user = await getAdminUser();
+  if (!user) {
+    return { ok: false, error: "Not authorised." };
+  }
+  if (!isAdminClientConfigured) {
+    return { ok: false, error: "Downloads are not available right now." };
+  }
+
+  const ref = await getEvidenceFileRef(evidenceId);
+  if (!ref?.fileUrl) {
+    return { ok: false, error: "File not found." };
+  }
+
+  try {
+    const supabase = createSupabaseAdminClient();
+    const { data, error } = await supabase.storage
+      .from(EVIDENCE_BUCKET)
+      .createSignedUrl(ref.fileUrl, 60, { download: ref.fileName ?? true });
+    if (error || !data) {
+      return { ok: false, error: "Could not create a download link." };
+    }
+    return { ok: true, url: data.signedUrl };
+  } catch (error) {
+    console.error("Failed to create evidence download URL", error);
+    return { ok: false, error: "Could not create a download link." };
+  }
 }

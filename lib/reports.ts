@@ -396,3 +396,17 @@ export async function getCompanyEntityTypes(
   });
   return grouped.map((g) => ({ entityType: g.entityType, count: g._count._all }));
 }
+
+/**
+ * Storage reference for a single evidence file (moderator download only).
+ * Returns null when the evidence row or its file is missing.
+ */
+export async function getEvidenceFileRef(
+  evidenceId: string,
+): Promise<{ fileUrl: string | null; fileName: string | null } | null> {
+  const ev = await prisma.evidence.findUnique({
+    where: { id: evidenceId },
+    select: { fileUrl: true, fileName: true },
+  });
+  return ev ?? null;
+}
