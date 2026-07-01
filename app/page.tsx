@@ -145,7 +145,7 @@ export default function HomePage() {
       <HowItWorksSection />
 
       {/* G. Example Risk Report */}
-      <section className="bg-white py-16 sm:py-20">
+      <section id="example-report" className="bg-white py-16 sm:py-20">
         <div className="mx-auto max-w-6xl px-4 sm:px-6">
           <div className="max-w-2xl">
             <p className="text-sm font-semibold uppercase tracking-wider text-cri-green">
@@ -261,6 +261,63 @@ export default function HomePage() {
                   Example only. Fictional data for illustration.
                 </p>
               </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* G2. Why report — reciprocity, phoenix, positive reports */}
+      <section className="py-16 sm:py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6">
+          <div className="mx-auto max-w-3xl text-center">
+            <h2 className="text-3xl font-bold tracking-tight text-cri-charcoal">
+              Warn others — and others will warn you.
+            </h2>
+            <p className="mt-5 text-lg leading-relaxed text-cri-steel">
+              Every project teaches you something about a client: who pays on
+              time, who buries you in unapproved extras, who keeps their word.
+              Right now that knowledge dies with the project. Share it &mdash;
+              the next contractor won&rsquo;t walk into the same trap, and
+              someone else&rsquo;s report may save you from yours.
+            </p>
+          </div>
+
+          <div className="mx-auto mt-8 flex max-w-3xl items-start gap-4 rounded-xl border border-cri-border bg-white p-5 text-left shadow-card">
+            <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-cri-amber-light text-cri-amber-dark">
+              <UsersIcon className="h-5 w-5" />
+            </span>
+            <div>
+              <p className="font-semibold text-cri-charcoal">
+                Changed the company name, left the debts behind?
+              </p>
+              <p className="mt-1 text-sm leading-relaxed text-cri-steel">
+                CIX links directors to their dissolved and liquidated companies
+                &mdash; so a &ldquo;brand-new&rdquo; firm with an old track
+                record can&rsquo;t hide it.
+              </p>
+            </div>
+          </div>
+
+          <div className="mx-auto mt-8 max-w-3xl text-center">
+            <p className="text-lg leading-relaxed text-cri-steel">
+              And report the good ones too. A client who pays in 14 days
+              deserves to be found. Good payers win better subcontractors, good
+              subcontractors win better clients &mdash; that&rsquo;s how the
+              industry gets fairer, one honest report at a time.
+            </p>
+            <div className="mt-8 flex flex-col justify-center gap-3 sm:flex-row">
+              <Link
+                href="/submit-report"
+                className="inline-flex items-center justify-center gap-2 rounded-lg bg-cri-green px-5 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-cri-green-dark"
+              >
+                Submit your first report
+              </Link>
+              <a
+                href="#example-report"
+                className="inline-flex items-center justify-center gap-2 rounded-lg border border-cri-border bg-white px-5 py-2.5 text-sm font-semibold text-cri-charcoal transition-colors hover:bg-cri-bg"
+              >
+                See a sample report
+              </a>
             </div>
           </div>
         </div>
