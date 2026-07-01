@@ -10,6 +10,8 @@ import { BEHAVIOUR_QUESTIONS } from "@/lib/behaviourQuestions";
 import type { CompanyFacts } from "@/lib/companiesHouse";
 import type { CompanyAtom } from "@/lib/level2/atom";
 import { formatMonthYear } from "@/lib/format";
+import { DownloadPdfButton } from "./DownloadPdfButton";
+import { PrintReportHeader, PrintReportFooter } from "./PrintReportChrome";
 
 const RISK_TEXT: Record<RiskLevel, string> = { LOW: "Low", MEDIUM: "Medium", HIGH: "High" };
 
@@ -58,6 +60,7 @@ export function CompanyReport({
   facts,
   comments,
   kind = "contractor",
+  preparedFor = null,
 }: {
   number: string;
   aggregate: McAggregate;
@@ -65,6 +68,7 @@ export function CompanyReport({
   facts: CompanyFacts | null;
   comments: { text: string; date: Date | null }[];
   kind?: "contractor" | "commercial";
+  preparedFor?: string | null;
 }) {
   const [atom, setAtom] = useState<CompanyAtom | null>(null);
   const [atomState, setAtomState] = useState<"loading" | "error" | "done">("loading");
@@ -107,10 +111,19 @@ export function CompanyReport({
   const dispute: RiskLevel | null = has ? level(a.formalDisputeReports / n, 0.3, 0.1) : null;
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <a href="/search" className="text-sm font-medium text-cri-green hover:underline">
-        ← Back to search
-      </a>
+    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 print:py-0">
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <a href="/search" className="text-sm font-medium text-cri-green hover:underline">
+          ← Back to search
+        </a>
+        <DownloadPdfButton />
+      </div>
+
+      <PrintReportHeader
+        companyName={name}
+        companyNumber={number}
+        preparedFor={preparedFor}
+      />
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-cri-border bg-white shadow-card">
         {/* Header */}
@@ -379,6 +392,8 @@ export function CompanyReport({
           CIX&apos;s opinion. Company facts come from Companies House.
         </div>
       </div>
+
+      <PrintReportFooter />
     </div>
   );
 }

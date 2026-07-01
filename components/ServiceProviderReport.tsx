@@ -8,6 +8,8 @@ import { SP_CONFIGS, type SpEntityType } from "@/lib/spScores";
 import type { CompanyFacts } from "@/lib/companiesHouse";
 import type { CompanyAtom } from "@/lib/level2/atom";
 import { formatMonthYear } from "@/lib/format";
+import { DownloadPdfButton } from "./DownloadPdfButton";
+import { PrintReportHeader, PrintReportFooter } from "./PrintReportChrome";
 
 function isoDate(s: string | null): string {
   if (!s) return "—";
@@ -40,12 +42,14 @@ export function ServiceProviderReport({
   aggregate: a,
   facts,
   comments,
+  preparedFor = null,
 }: {
   number: string;
   entityType: SpEntityType;
   aggregate: SpAggregate;
   facts: CompanyFacts | null;
   comments: { text: string; date: Date | null }[];
+  preparedFor?: string | null;
 }) {
   const config = SP_CONFIGS[entityType];
   const [atom, setAtom] = useState<CompanyAtom | null>(null);
@@ -80,10 +84,19 @@ export function ServiceProviderReport({
   const linked = atomState === "done" ? String(atom?.connected.length ?? 0) : "—";
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6">
-      <a href="/search" className="text-sm font-medium text-cri-green hover:underline">
-        ← Back to search
-      </a>
+    <div className="mx-auto max-w-3xl px-4 py-12 sm:px-6 print:py-0">
+      <div className="flex items-center justify-between gap-3 print:hidden">
+        <a href="/search" className="text-sm font-medium text-cri-green hover:underline">
+          ← Back to search
+        </a>
+        <DownloadPdfButton />
+      </div>
+
+      <PrintReportHeader
+        companyName={name}
+        companyNumber={number}
+        preparedFor={preparedFor}
+      />
 
       <div className="mt-4 overflow-hidden rounded-2xl border border-cri-border bg-white shadow-card">
         {/* Header */}
@@ -261,6 +274,8 @@ export function ServiceProviderReport({
           CIX&apos;s opinion. Company facts come from Companies House.
         </div>
       </div>
+
+      <PrintReportFooter />
     </div>
   );
 }

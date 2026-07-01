@@ -47,3 +47,31 @@
     @apply w-full rounded-lg border border-cri-border bg-white px-3.5 py-2.5 text-sm text-cri-charcoal shadow-sm transition-colors placeholder:text-cri-steel/60 focus:border-cri-green focus:outline-none focus:ring-1 focus:ring-cri-green;
   }
 }
+/* ---------------------------------------------------------------------------
+   Print (Download PDF): hide site chrome, keep report colours, page margins.
+   The report's own print header/footer live in PrintReportChrome.tsx.
+--------------------------------------------------------------------------- */
+@media print {
+  header,
+  footer {
+    display: none !important;
+  }
+
+  body {
+    background: #fff !important;
+  }
+
+  * {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .shadow-card,
+  .shadow-card-hover {
+    box-shadow: none !important;
+  }
+}
+
+@page {
+  margin: 14mm;
+}

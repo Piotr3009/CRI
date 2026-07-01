@@ -116,6 +116,9 @@ export default async function CompanyReportPage({
     );
   }
 
+  // Shown in the printed PDF header ("Prepared for ...").
+  const preparedFor = user?.companyName ?? user?.name ?? user?.email ?? null;
+
   // Direct link, no reviews, but the company is real -> default to a contractor
   // shell so the buyer still gets the Companies House intelligence.
   if (toRender.length === 0) toRender = ["MAIN_CONTRACTOR"];
@@ -133,6 +136,7 @@ export default async function CompanyReportPage({
           facts={facts}
           comments={toComments(rows)}
           kind={et === "COMMERCIAL_CLIENT" ? "commercial" : "contractor"}
+          preparedFor={preparedFor}
         />,
       );
     } else if (isSpEntityType(et)) {
@@ -150,6 +154,7 @@ export default async function CompanyReportPage({
           )}
           facts={facts}
           comments={toComments(rows)}
+          preparedFor={preparedFor}
         />,
       );
     }
