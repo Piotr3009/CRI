@@ -321,7 +321,7 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-cri-border bg-cri-bg p-5">
           <div>
             <p className="text-sm font-medium text-cri-charcoal">This is a full sample report</p>
-            <p className="mt-0.5 text-[11px] text-cri-steel">Real company reports from £2.99</p>
+            <p className="mt-0.5 text-[11px] text-cri-steel">Search a real company to see its live report</p>
           </div>
           <Link
             href="/search"

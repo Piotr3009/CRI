@@ -10,7 +10,16 @@ import { aggregateServiceProvider } from "@/lib/level2/serviceProvider";
 import { getCompanyProfile } from "@/lib/companiesHouse";
 import { CompanyReport } from "@/components/CompanyReport";
 import { ServiceProviderReport } from "@/components/ServiceProviderReport";
+import { CompanyPaywall } from "@/components/CompanyPaywall";
 import { SP_CONFIGS, isSpEntityType } from "@/lib/spScores";
+import { getCurrentUser } from "@/lib/user";
+import { isAdminRole } from "@/lib/auth";
+import {
+  countApprovedCompanyReports,
+  hasCompanyAccess,
+  tierForApprovedCount,
+} from "@/lib/purchases";
+import { confirmCheckoutSession } from "./actions";
 import type { EntityType } from "@prisma/client";
 
 export const metadata: Metadata = {
@@ -76,6 +85,36 @@ export default async function CompanyReportPage({
   // Companies House facts, or at least one approved review for a chosen role.
   const hasContent = !!facts || toRender.some((t) => present.includes(t));
   if (!hasContent) notFound();
+
+  // ---------------------------------------------------------------------
+  // Pay-per-report gate. Admins always pass; buyers pass while their 30-day
+  // access is live. Returning from Stripe, the session_id fallback grants
+  // access immediately even if the webhook hasn't landed yet.
+  // ---------------------------------------------------------------------
+  const user = await getCurrentUser();
+
+  const sessionIdRaw = searchParams?.session_id;
+  if (user && typeof sessionIdRaw === "string" && sessionIdRaw) {
+    await confirmCheckoutSession(sessionIdRaw, user.id);
+  }
+
+  const isAdmin = user ? isAdminRole(user.role) : false;
+  const unlocked =
+    isAdmin || (user ? await hasCompanyAccess(user.id, number) : false);
+
+  if (!unlocked) {
+    const approvedCount = await countApprovedCompanyReports(number);
+    const { amountPence } = tierForApprovedCount(approvedCount);
+    return (
+      <CompanyPaywall
+        number={number}
+        facts={facts}
+        approvedCount={approvedCount}
+        amountPence={amountPence}
+        signedIn={Boolean(user)}
+      />
+    );
+  }
 
   // Direct link, no reviews, but the company is real -> default to a contractor
   // shell so the buyer still gets the Companies House intelligence.

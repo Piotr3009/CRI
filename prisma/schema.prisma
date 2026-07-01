@@ -144,7 +144,28 @@ model User {
   createdAt      DateTime       @default(now())
   updatedAt      DateTime       @updatedAt
 
-  reports RiskReport[]
+  reports      RiskReport[]
+  reportAccess ReportAccess[]
+}
+
+// Pay-per-report purchase: 30-day access to one company's full risk report.
+// Created PENDING when a Stripe Checkout session starts; marked PAID (and
+// given an expiry) by the Stripe webhook or the success-redirect fallback.
+model ReportAccess {
+  id                   String    @id @default(cuid())
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String
+  companiesHouseNumber String
+  tier                 String // BASIC (no approved reviews) | WITH_REPORTS
+  amountPence          Int
+  currency             String    @default("gbp")
+  status               String    @default("PENDING") // PENDING | PAID
+  stripeSessionId      String    @unique
+  expiresAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@index([userId, companiesHouseNumber, status])
 }
 
 model RiskReport {
