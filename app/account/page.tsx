@@ -6,6 +6,7 @@ import {
 } from "@/lib/constants";
 import { formatDate } from "@/lib/format";
 import { getCurrentUser, getReportsByUser } from "@/lib/user";
+import { getUserPurchases } from "@/lib/purchases";
 import { DeleteAccountButton } from "@/components/DeleteAccountButton";
 
 export const metadata: Metadata = {
@@ -43,7 +44,11 @@ export default async function AccountPage() {
     );
   }
 
-  const reports = await getReportsByUser(user.id);
+  const [reports, purchases] = await Promise.all([
+    getReportsByUser(user.id),
+    getUserPurchases(user.id),
+  ]);
+  const now = new Date();
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:px-6">
@@ -106,14 +111,55 @@ export default async function AccountPage() {
         )}
       </section>
 
-      {/* Purchases (placeholder until billing exists) */}
+      {/* Purchases */}
       <section className="mt-6 rounded-xl border border-cri-border bg-white p-5 shadow-card sm:p-6">
         <h2 className="text-sm font-semibold uppercase tracking-wide text-cri-steel">
           Purchases
         </h2>
-        <p className="mt-3 text-sm text-cri-steel">
-          Your purchased reports will appear here once paid reports go live.
-        </p>
+        {purchases.length === 0 ? (
+          <p className="mt-3 text-sm text-cri-steel">No purchases yet.</p>
+        ) : (
+          <ul className="mt-3 divide-y divide-cri-border">
+            {purchases.map((p) => {
+              const active = !!p.expiresAt && p.expiresAt > now;
+              return (
+                <li
+                  key={p.id}
+                  className="flex flex-wrap items-center justify-between gap-3 py-3"
+                >
+                  <div className="min-w-0">
+                    <p className="text-sm font-medium text-cri-charcoal">
+                      Company no. {p.companiesHouseNumber}
+                    </p>
+                    <p className="mt-0.5 text-xs text-cri-steel">
+                      {p.tier === "WITH_REPORTS"
+                        ? "Full risk report"
+                        : "Company intelligence"}{" "}
+                      · purchased {formatDate(p.createdAt)}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-3">
+                    {active ? (
+                      <span className="rounded-full bg-cri-green/10 px-2.5 py-1 text-xs font-medium text-cri-green">
+                        Active — expires {formatDate(p.expiresAt)}
+                      </span>
+                    ) : (
+                      <span className="rounded-full border border-cri-border bg-cri-bg px-2.5 py-1 text-xs font-medium text-cri-steel">
+                        Expired {p.expiresAt ? formatDate(p.expiresAt) : ""}
+                      </span>
+                    )}
+                    <Link
+                      href={`/company/${encodeURIComponent(p.companiesHouseNumber)}`}
+                      className="text-sm font-semibold text-cri-green hover:underline"
+                    >
+                      {active ? "View report" : "Buy again"}
+                    </Link>
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
       </section>
 
       {/* Delete account */}

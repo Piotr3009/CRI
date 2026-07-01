@@ -63,6 +63,14 @@ export async function hasCompanyAccess(
   return Boolean(found);
 }
 
+/** A user's paid purchases, newest first (for the My Account page). */
+export async function getUserPurchases(userId: string) {
+  return prisma.reportAccess.findMany({
+    where: { userId, status: "PAID" },
+    orderBy: { createdAt: "desc" },
+  });
+}
+
 /** Record the purchase attempt when a Checkout session is created. */
 export async function createPendingAccess(input: {
   userId: string;
