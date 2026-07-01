@@ -158,7 +158,7 @@ export function AuthModal({
         setSentTo(email.trim());
         setSubmitting(false);
       } else if (isSignup) {
-        const { error: err } = await supabase.auth.signUp({
+        const { data, error: err } = await supabase.auth.signUp({
           email: email.trim(),
           password,
           options: {
@@ -174,6 +174,17 @@ export function AuthModal({
         });
         if (err) {
           setError(err.message);
+          setSubmitting(false);
+          return;
+        }
+        // Supabase deliberately fakes success for an already-registered email
+        // (anti-enumeration) but returns an empty identities array — detect it
+        // and tell the person the truth instead of promising an email that
+        // will never arrive.
+        if (data.user && (data.user.identities?.length ?? 0) === 0) {
+          setError(
+            "An account with this email already exists. Sign in instead, or use \u201CForgot password\u201D if you can\u2019t remember your password.",
+          );
           setSubmitting(false);
           return;
         }
