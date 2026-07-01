@@ -24,7 +24,7 @@ const STEPS = [
   {
     n: 5,
     title: "Sensitive personal data is restricted",
-    text: "Residential names and exact addresses are never published publicly.",
+    text: "Personal names and exact project addresses are never published publicly.",
   },
   {
     n: 6,

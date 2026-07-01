@@ -14,6 +14,8 @@ import {
   BuildingIcon,
   ClipboardIcon,
   UsersIcon,
+  AlertIcon,
+  ScaleIcon,
 } from "./Icons";
 
 type IconProps = { className?: string };
@@ -157,7 +159,7 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
         <div className="grid grid-cols-3 border-b border-cri-border bg-cri-bg">
           <div className="border-r border-cri-border p-3">
             <p className="text-xs text-cri-steel">Overall risk</p>
-            <p className="text-base font-semibold text-cri-amber">Medium–high</p>
+            <p className="text-base font-semibold text-[#C0392B]">High</p>
           </div>
           <div className="border-r border-cri-border p-3">
             <p className="text-xs text-cri-steel">Reviews</p>
@@ -175,8 +177,8 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
           <div>
             <SectionHead icon={<ChatIcon className="h-4 w-4" />}>Contractor reviews</SectionHead>
             <div className="grid grid-cols-2 gap-3">
-              <GaugeTile score={3.2} label="Payment Score" icon={<PoundIcon className="h-3.5 w-3.5" />} />
-              <GaugeTile score={4.1} label="Communication" icon={<ChatIcon className="h-3.5 w-3.5" />} />
+              <GaugeTile score={2.8} label="Payment Score" icon={<PoundIcon className="h-3.5 w-3.5" />} />
+              <GaugeTile score={4.1} label="Behaviour" icon={<ChatIcon className="h-3.5 w-3.5" />} />
             </div>
             <div className="mt-3 flex flex-wrap gap-2">
               <RiskBadge level="HIGH" label="Variation" />
@@ -185,6 +187,77 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
             <p className="mt-2 text-[11px] text-cri-steel">
               Based on 4 reports · contractor-submitted, not CIX&rsquo;s opinion.
             </p>
+          </div>
+
+          {/* D2 — Abandoned invoices (hard red flag) */}
+          <div className="flex items-start gap-3 rounded-lg border border-[#C0392B]/30 bg-[#C0392B]/5 p-3">
+            <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#C0392B]/10 text-[#C0392B]">
+              <AlertIcon className="h-4 w-4" />
+            </span>
+            <div>
+              <p className="text-sm font-semibold text-[#C0392B]">Abandoned invoices</p>
+              <p className="text-xs text-cri-steel">
+                2 reported · £46,500 unpaid for over 60 days. Two or more with a
+                low payment score force the overall risk to High.
+              </p>
+            </div>
+          </div>
+
+          {/* D3 — Behaviour detail */}
+          <div>
+            <SectionHead icon={<ClipboardIcon className="h-4 w-4" />}>Behaviour detail</SectionHead>
+            <dl className="text-sm text-cri-charcoal">
+              <div className="flex items-center justify-between gap-3 border-b border-cri-border py-1.5">
+                <dt className="text-cri-steel">Kept agreements</dt>
+                <dd className="rounded-md bg-[#D99A21]/10 px-2 py-0.5 text-xs text-[#8A6414]">Sometimes</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 border-b border-cri-border py-1.5">
+                <dt className="text-cri-steel">Extra work requested before costs agreed</dt>
+                <dd className="rounded-md bg-[#C0392B]/10 px-2 py-0.5 text-xs text-[#C0392B]">Yes</dd>
+              </div>
+              <div className="flex items-center justify-between gap-3 py-1.5">
+                <dt className="text-cri-steel">Responded on time</dt>
+                <dd className="rounded-md bg-[#D99A21]/10 px-2 py-0.5 text-xs text-[#8A6414]">Sometimes</dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* D4 — Payment behaviour */}
+          <div>
+            <SectionHead icon={<PoundIcon className="h-4 w-4" />}>Payment behaviour</SectionHead>
+            <dl className="text-sm text-cri-charcoal">
+              <div className="flex justify-between border-b border-cri-border py-1.5">
+                <dt className="text-cri-steel">Average payment delay</dt>
+                <dd>24 days</dd>
+              </div>
+              <div className="flex justify-between border-b border-cri-border py-1.5">
+                <dt className="text-cri-steel">Deductions not agreed</dt>
+                <dd>1 of 4 reports · £8,200</dd>
+              </div>
+              <div className="flex justify-between border-b border-cri-border py-1.5">
+                <dt className="text-cri-steel">Retention returned</dt>
+                <dd>Not returned · 1 of 4</dd>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <dt className="text-cri-steel">Variations confirmed in writing</dt>
+                <dd>1 of 4 reports</dd>
+              </div>
+            </dl>
+          </div>
+
+          {/* D5 — Disputes */}
+          <div>
+            <SectionHead icon={<ScaleIcon className="h-4 w-4" />}>Disputes</SectionHead>
+            <dl className="text-sm text-cri-charcoal">
+              <div className="flex justify-between border-b border-cri-border py-1.5">
+                <dt className="text-cri-steel">Court action / formal dispute</dt>
+                <dd className="font-medium text-[#C0392B]">1 of 4 reports</dd>
+              </div>
+              <div className="flex justify-between py-1.5">
+                <dt className="text-cri-steel">Total contract value</dt>
+                <dd>£2.4m</dd>
+              </div>
+            </dl>
           </div>
 
           {/* B — Connections (revealed) */}
@@ -209,6 +282,10 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
                 <dt className="text-cri-steel">Industry (SIC)</dt>
                 <dd>41201 · Construction</dd>
               </div>
+              <div className="flex justify-between border-b border-cri-border py-1.5">
+                <dt className="text-cri-steel">Previous names</dt>
+                <dd>Northline Construction Ltd</dd>
+              </div>
               <div className="flex justify-between py-1.5">
                 <dt className="text-cri-steel">Registered office</dt>
                 <dd>Manchester, M3</dd>
@@ -228,9 +305,13 @@ function SampleReportModal({ onClose }: { onClose: () => void }) {
                 <dt className="text-cri-steel">Confirmation statement</dt>
                 <dd className="text-xs text-cri-green-light">Up to date</dd>
               </div>
-              <div className="flex items-center justify-between py-1.5">
+              <div className="flex items-center justify-between border-b border-cri-border py-1.5">
                 <dt className="text-cri-steel">Charges / mortgages</dt>
                 <dd>1 registered</dd>
+              </div>
+              <div className="flex items-center justify-between py-1.5">
+                <dt className="text-cri-steel">Insolvency history</dt>
+                <dd className="text-xs text-cri-green-light">No</dd>
               </div>
             </dl>
           </div>
@@ -293,8 +374,8 @@ export function DashboardPreview() {
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3">
-        <GaugeTile score={3.2} label="Payment Score" icon={<PoundIcon className="h-3.5 w-3.5" />} />
-        <GaugeTile score={4.1} label="Communication" icon={<ChatIcon className="h-3.5 w-3.5" />} />
+        <GaugeTile score={2.8} label="Payment Score" icon={<PoundIcon className="h-3.5 w-3.5" />} />
+        <GaugeTile score={4.1} label="Behaviour" icon={<ChatIcon className="h-3.5 w-3.5" />} />
       </div>
 
       <dl className="mt-3 space-y-2 text-sm">

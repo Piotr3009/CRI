@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { HeroSection } from "@/components/HeroSection";
 import { HowItWorksSection } from "@/components/HowItWorksSection";
-import { ResidentialCommercialSection } from "@/components/ResidentialCommercialSection";
 import { RiskScoreCard } from "@/components/RiskScoreCard";
 import { RiskBadge } from "@/components/RiskBadge";
 import { EvidenceBadge } from "@/components/EvidenceBadge";
@@ -76,6 +75,11 @@ export default function HomePage() {
                 unapproved extras can destroy profit before a project even
                 starts.
               </p>
+              <p className="mt-3 text-lg leading-relaxed text-cri-steel">
+                Construction loses more companies to insolvency than any other
+                UK sector — around 4,000 firms a year — and late payment is
+                the most common trigger.
+              </p>
             </div>
             <ul className="space-y-3">
               {PROBLEMS.map((problem) => (
@@ -137,9 +141,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* E. Residential vs Commercial */}
-      <ResidentialCommercialSection />
-
       {/* F. How It Works */}
       <HowItWorksSection />
 
@@ -161,10 +162,10 @@ export default function HomePage() {
                 <div className="flex items-center justify-between border-b border-cri-border bg-cri-bg px-5 py-4">
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-wider text-cri-steel">
-                      Residential Client
+                      Main Contractor
                     </p>
                     <p className="text-lg font-bold text-cri-charcoal">
-                      C.A. — SW19
+                      Northline Build Group Ltd
                     </p>
                   </div>
                   <EvidenceBadge status="BASIC_EVIDENCE" />
@@ -172,34 +173,59 @@ export default function HomePage() {
 
                 <div className="grid gap-4 p-5 sm:grid-cols-2">
                   <RiskScoreCard label="Payment Score" score={2.8} />
-                  <RiskScoreCard label="Communication Score" score={3.5} />
+                  <RiskScoreCard label="Behaviour" score={4.1} />
                 </div>
 
                 <div className="flex flex-wrap gap-2 px-5">
+                  <RiskBadge level="HIGH" label="Overall Risk" />
                   <RiskBadge level="HIGH" label="Variation Risk" />
                   <RiskBadge level="MEDIUM" label="Dispute Risk" />
                 </div>
 
+                <div className="mx-5 mt-4 flex items-start gap-3 rounded-lg border border-[#C0392B]/30 bg-[#C0392B]/5 p-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-[#C0392B]/10 text-[#C0392B]">
+                    <AlertIcon className="h-4 w-4" />
+                  </span>
+                  <div>
+                    <p className="text-sm font-semibold text-[#C0392B]">
+                      Abandoned invoices
+                    </p>
+                    <p className="text-xs text-cri-steel">
+                      2 reported · £46,500 unpaid for over 60 days
+                    </p>
+                  </div>
+                </div>
+
                 <dl className="grid grid-cols-2 gap-3 px-5 py-4 text-sm">
                   <div>
-                    <dt className="text-cri-steel">Entity Type</dt>
+                    <dt className="text-cri-steel">Company No.</dt>
+                    <dd className="font-medium text-cri-charcoal">09421765</dd>
+                  </div>
+                  <div>
+                    <dt className="text-cri-steel">Region</dt>
                     <dd className="font-medium text-cri-charcoal">
-                      Residential Client
+                      Manchester
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-cri-steel">Area</dt>
-                    <dd className="font-medium text-cri-charcoal">SW19</dd>
+                    <dt className="text-cri-steel">Avg payment delay</dt>
+                    <dd className="font-medium text-cri-charcoal">24 days</dd>
                   </div>
                   <div>
-                    <dt className="text-cri-steel">Client Initials</dt>
-                    <dd className="font-medium text-cri-charcoal">C.A.</dd>
-                  </div>
-                  <div>
-                    <dt className="text-cri-steel">Project Type</dt>
+                    <dt className="text-cri-steel">Retention returned</dt>
                     <dd className="font-medium text-cri-charcoal">
-                      Refurbishment
+                      Not returned · 1 of 4
                     </dd>
+                  </div>
+                  <div>
+                    <dt className="text-cri-steel">Court / formal dispute</dt>
+                    <dd className="font-medium text-cri-charcoal">
+                      1 of 4 reports
+                    </dd>
+                  </div>
+                  <div>
+                    <dt className="text-cri-steel">Total contract value</dt>
+                    <dd className="font-medium text-cri-charcoal">£2.4m</dd>
                   </div>
                 </dl>
 
@@ -208,8 +234,9 @@ export default function HomePage() {
                     Public Summary
                   </p>
                   <p className="mt-1.5 text-sm leading-relaxed text-cri-charcoal">
-                    &ldquo;Contractor-reported delayed payment and repeated
-                    requests for additional work before costs were agreed.&rdquo;
+                    &ldquo;Subcontractors report late payment, deductions that
+                    were not agreed, and extra work requested before costs were
+                    approved.&rdquo;
                   </p>
                 </div>
               </div>
@@ -221,9 +248,11 @@ export default function HomePage() {
                   How to read this
                 </h3>
                 <p className="mt-2 text-sm leading-relaxed text-cri-steel">
-                  Residential records show initials and area only. Scores
-                  summarise the contractor&rsquo;s reported experience, and the
-                  evidence badge shows how well the report is supported.
+                  Scores summarise what subcontractors reported: payment gauges
+                  are built from real invoice delays, behaviour from contract
+                  conduct. Two or more abandoned invoices with a low payment
+                  score force the overall risk to High &mdash; and the evidence
+                  badge shows how well the reports are supported.
                 </p>
                 <div className="mt-5">
                   <LegalDisclaimer variant="compact" />
